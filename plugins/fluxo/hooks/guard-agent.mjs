@@ -802,6 +802,31 @@ function evaluate(agent, input, projectDir) {
   checkWritePath(agent, target, cwd, projectDir);
 }
 
+function samePath(a, b) {
+  return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
+// Raiz efetiva do projeto. Numa sessão em git worktree, o CLAUDE_PROJECT_DIR é o checkout principal e o cwd é o worktree.
+// Vale o worktree do cwd só se ele for do mesmo repositório (mesmo --git-common-dir); em qualquer dúvida, fica o CLAUDE_PROJECT_DIR.
+function effectiveProjectDir(projectDir, cwd) {
+  if (typeof cwd !== 'string' || !cwd) return projectDir;
+  try {
+    const revParse = (dir) => {
+      const lines = execFileSync('git', ['rev-parse', '--show-toplevel', '--git-common-dir'], {
+        cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 5000,
+      }).split(/\r?\n/).filter(Boolean);
+      if (lines.length !== 2) throw new Error('saída inesperada do git rev-parse.');
+      return { top: canonical(resolve(lines[0])), common: canonical(resolve(dir, lines[1])) };
+    };
+    const project = revParse(projectDir);
+    const current = revParse(cwd);
+    if (!samePath(project.common, current.common) || samePath(project.top, current.top)) return projectDir;
+    return current.top;
+  } catch {
+    return projectDir;
+  }
+}
+
 // Nome do agente do fluxo, vindo do campo agent_type do hook. Aceita "architect" e o nome com namespace "fluxo:architect".
 function fluxoAgent(agentType) {
   if (typeof agentType !== 'string') return null;
@@ -830,8 +855,8 @@ function main() {
     }
   }
   if (!agent) return;
-  const projectDir = process.env.CLAUDE_PROJECT_DIR;
-  if (!projectDir) throw new Denied('CLAUDE_PROJECT_DIR não definido.');
+  if (!process.env.CLAUDE_PROJECT_DIR) throw new Denied('CLAUDE_PROJECT_DIR não definido.');
+  const projectDir = effectiveProjectDir(process.env.CLAUDE_PROJECT_DIR, input?.cwd);
   CONFIG = loadConfig(projectDir);
   evaluate(agent, input, projectDir);
 }
