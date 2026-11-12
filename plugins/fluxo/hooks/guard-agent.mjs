@@ -353,6 +353,18 @@ function programName(token) {
   return basename(token.replace(/\\/g, '/')).replace(/\.(exe|cmd|bat|ps1)$/i, '').toLowerCase();
 }
 
+// Variáveis que o Reviewer pode definir antes do comando: só apontam a instalação ou mudam a saída,
+// sem trocar o programa que roda (ao contrário de PAGER, NODE_OPTIONS, DOTNET_STARTUP_HOOKS, GIT_*).
+const REVIEWER_SAFE_VARIABLES = new Set(['DOTNET_ROOT', 'DOTNET_ROLL_FORWARD', 'DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'CI', 'NO_COLOR', 'FORCE_COLOR']);
+
+function isHarmlessAssignment(token) {
+  const eq = token.indexOf('=');
+  const name = token.slice(0, eq);
+  const value = token.slice(eq + 1);
+  // Valor simples: caminho ou palavra, com $VAR permitido; sem $( ), crase, ${ } nem separadores.
+  return REVIEWER_SAFE_VARIABLES.has(name) && /^(?:[\w./:\\~+-]|\$[A-Za-z_]\w*)*$/.test(value);
+}
+
 // Tira palavras reservadas, atribuições e prefixos como env e sudo.
 function stripPrefixes(tokens, agent) {
   let rest = tokens;
@@ -362,7 +374,9 @@ function stripPrefixes(tokens, agent) {
         rest = rest.slice(1);
       } else if (rest.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(rest[0])) {
         if (/^GIT_/i.test(rest[0])) throw new Denied('variáveis GIT_* não são permitidas.');
-        if (agent === 'reviewer') throw new Denied('o Reviewer não define variáveis antes do comando.');
+        if (agent === 'reviewer' && !isHarmlessAssignment(rest[0])) {
+          throw new Denied(`o Reviewer só define antes do comando as variáveis ${[...REVIEWER_SAFE_VARIABLES].join(', ')}, com valor simples.`);
+        }
         rest = rest.slice(1);
       } else if (rest.length > 1 && /^\$[A-Za-z_]\w*$/.test(rest[0]) && rest[1] === '=') {
         // $x = valor, no PowerShell.

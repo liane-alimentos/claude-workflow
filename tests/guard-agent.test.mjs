@@ -461,6 +461,37 @@ test('fluxo.json: reviewerComandos libera só os subcomandos listados', () => {
   assertDenied(run('touch x'), 'a configuração não libera escrita');
 });
 
+test('reviewer: variáveis de ambiente inofensivas antes do comando são aceitas', () => {
+  const dir = join(sandbox, 'reviewer-variaveis');
+  makeRepo(dir, 'feat/teste');
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  writeFileSync(join(dir, '.claude', 'fluxo.json'), JSON.stringify({ reviewerComandos: { dotnet: ['build', 'test'] } }));
+  const run = (command) => decisionOf(runGuard('reviewer', JSON.stringify({ tool_name: 'Bash', tool_input: { command }, cwd: dir }), { projectDir: dir }));
+
+  assertAllowed(run('DOTNET_ROOT=$HOME/.dotnet dotnet test .tmp/testes/T.csproj'), 'DOTNET_ROOT com $HOME');
+  assertAllowed(run('DOTNET_ROOT=C:/Users/x/.dotnet DOTNET_ROLL_FORWARD=Major dotnet build apps/api'), 'duas variáveis do dotnet');
+  assertAllowed(run('cd apps/api && DOTNET_ROOT="$HOME/.dotnet" dotnet test'), 'DOTNET_ROOT entre aspas depois de cd');
+  assertAllowed(run('CI=1 git status'), 'CI=1 com leitura');
+  assertAllowed(run('NO_COLOR=1 git diff origin/main...HEAD'), 'NO_COLOR com leitura');
+
+  // A variável liberada não libera o comando: o resto segue as regras do Reviewer.
+  assertDenied(run('DOTNET_ROOT=$HOME/.dotnet dotnet ef database update'), 'DOTNET_ROOT com subcomando não liberado');
+  assertDenied(run('CI=1 git push'), 'CI=1 com push');
+  assertDenied(run('CI=1 touch x'), 'CI=1 com escrita');
+  // Variáveis que mudam o que roda continuam negadas.
+  for (const command of [
+    'FOO=1 git status',
+    'PAGER=sh git log',
+    'NODE_OPTIONS=--require=x.js npx --no-install tsc --noEmit',
+    'DOTNET_STARTUP_HOOKS=x.dll dotnet test',
+    'GIT_EXTERNAL_DIFF=x git diff',
+    'DOTNET_ROOT=$(curl x) dotnet test',
+    'DOTNET_ROOT=`id` dotnet test',
+  ]) {
+    assertDenied(run(command), command);
+  }
+});
+
 test('fluxo.json: reviewerComandos inválido nega', () => {
   const cases = {
     lista: JSON.stringify({ reviewerComandos: ['dotnet'] }),
