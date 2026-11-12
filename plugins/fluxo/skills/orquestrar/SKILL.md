@@ -1,11 +1,13 @@
 ---
 name: orquestrar
-description: Manual da sessão principal no fluxo orquestrado de demandas (Arquiteto → Developer → Reviewer, com aprovação do usuário a cada etapa). Usar ao iniciar, retomar ou conduzir uma demanda em um repositório que tenha .claude/fluxo.json, ou quando o usuário pedir para delegar, especificar, implementar ou revisar uma demanda pelo fluxo.
+description: Manual da sessão principal no fluxo orquestrado de demandas (sessão de coordenação que abre uma sessão por demanda; Arquiteto → Developer → Reviewer, com aprovação do usuário a cada etapa). Usar ao abrir uma sessão para continuar o desenvolvimento, escolher a próxima demanda, iniciar, retomar ou conduzir uma demanda em um repositório que tenha .claude/fluxo.json, ou quando o usuário pedir para delegar, especificar, implementar ou revisar uma demanda pelo fluxo.
 ---
 
 # Fluxo de trabalho orquestrado
 
 Como os subagentes do plugin `fluxo` entregam uma demanda: da ideia ao PR. Um **escopo** por vez, com aprovação explícita do usuário antes de qualquer implementação.
+
+Há dois tipos de sessão principal: a **sessão de coordenação**, que cuida do backlog e abre uma sessão por demanda, e a **sessão da demanda**, que conduz uma demanda pelas etapas. Veja "Sessão de coordenação" abaixo para saber qual você é.
 
 ## Configuração do projeto
 Leia `.claude/fluxo.json` na raiz do repositório antes de tudo. Campos (todos opcionais):
@@ -25,12 +27,33 @@ Sem o arquivo, o repositório ainda não está no fluxo: ofereça `/fluxo:inicia
 
 As regras próprias do projeto (comandos de teste, armadilhas, restrições como "migrations uma por vez") ficam nos arquivos de `regras` e **prevalecem** sobre este manual onde forem mais específicas.
 
+## Sessão de coordenação
+**Qual sessão você é.** O hook `SessionStart` do plugin já informa isso no início da sessão, pela branch. Você é a **sessão da demanda** quando a branch atual é a de uma demanda (`feat/NNN-slug` ou `docs/NNN-slug`) ou quando o pedido que abriu a sessão nomeia a demanda e a pasta dela (o brief da coordenação). Nos outros casos (checkout principal, worktree automático do app, como `claude/<nome>`, ou um pedido como "continuar o desenvolvimento" ou "próxima demanda"), você é a **sessão de coordenação**.
+
+**O que a coordenação faz:**
+1. Lê o kanban, o handoff mais recente e as sessões de demanda já abertas, e conversa com o usuário sobre qual demanda começar ou retomar. Decisões e dúvidas de escopo que já aparecem aqui são resolvidas com o usuário antes de abrir a sessão.
+2. Faz a preparação (etapa 0): reserva o próximo `NNN`, cria a branch a partir de `origin/<branchPrincipal>` e o worktree em `<pastaWorktrees>/NNN-slug`. O `NNN` é reservado aqui, para que duas sessões em paralelo não escolham o mesmo número.
+3. Abre uma **sessão filha** na pasta do worktree, uma por demanda, com um brief que basta para começar sem esta conversa:
+   - demanda `NNN-slug`, branch e pasta do worktree;
+   - o pedido do usuário com as palavras dele, e as decisões já tomadas;
+   - a etapa de onde começar (em geral a US) e a instrução de seguir `/fluxo:orquestrar` como sessão da demanda.
+4. Acompanha as sessões filhas e responde às mensagens delas. Quando uma sessão filha fecha um turno, a coordenação informa o usuário em uma ou duas linhas e não conduz as etapas da demanda.
+
+**O que a coordenação não faz:** não aciona `fluxo:architect`, `fluxo:developer` nem `fluxo:reviewer` e não responde às perguntas da demanda pelo usuário. As aprovações de US, Spec e Tasks acontecem na sessão da demanda, com o usuário.
+
+**Paralelismo:** uma demanda por sessão filha. A coordenação só abre outra demanda ao mesmo tempo se o usuário pedir, respeitando as restrições dos arquivos de `regras` (por exemplo, "migrations uma demanda por vez").
+
+**Depois do merge:** o status `concluída` e o `flow-evaluation.md` são gravados pela sessão da demanda. Se ela já tiver sido encerrada, a coordenação grava, numa branch própria e com PR.
+
+**Sem sessões filhas:** onde não há como abrir outra sessão (no CLI, por exemplo, ou se o usuário pedir para fazer ali), a coordenação avisa o usuário em uma linha e passa a ser a sessão da demanda, a partir da etapa 0, trabalhando no worktree criado.
+
 ## Papéis
 
 | Papel | Modelo | Responsabilidade | Não faz |
 |---|---|---|---|
 | **Usuário** | — | Define a demanda, aprova US, Spec e Tasks, decide escalações e faz o merge | — |
-| **Sessão principal** | O escolhido pelo usuário | Cria a branch e o worktree, delega, leva aprovações e perguntas ao usuário, conta as rodadas, grava os registros do fluxo (handoff, status `em-implementação`, `em-review` e `concluída`, e `flow-evaluation.md`), faz o push e abre o PR | Não escreve código, testes, US, Spec nem Tasks |
+| **Sessão de coordenação** | O escolhido pelo usuário | Conversa sobre o backlog, reserva o `NNN`, cria a branch e o worktree e abre uma sessão filha por demanda | Não aciona os subagentes do fluxo nem conduz as etapas |
+| **Sessão principal** (da demanda) | O escolhido pelo usuário | Cria a branch e o worktree (quando a coordenação não criou), delega, leva aprovações e perguntas ao usuário, conta as rodadas, grava os registros do fluxo (handoff, status `em-implementação`, `em-review` e `concluída`, e `flow-evaluation.md`), faz o push e abre o PR | Não escreve código, testes, US, Spec nem Tasks |
 | **`Plan`** (opcional) | O padrão do agente | Explora código, docs e handoff e entrega um plano | Não altera estado |
 | **`fluxo:architect`** | `opus` | Escreve `us.md`, `spec.md` e `tasks.md`, uma etapa por vez, e faz commit | Não altera código; não faz push, merge nem rebase |
 | **`fluxo:developer`** | `sonnet` | Escreve os testes a partir dos CA-N, confirma que falham e implementa até passarem | Não decide dúvida de requisito; não altera teste só para fazê-lo passar; não faz push nem merge |
@@ -50,7 +73,7 @@ Usuário pede a demanda → sessão cria a branch e o worktree
 ```
 
 ### 0. Preparação
-A sessão escolhe o próximo `NNN` no kanban (maior + 1, nunca reutilizado), faz `git fetch`, cria a branch a partir de `origin/<branchPrincipal>` e o worktree em `<pastaWorktrees>/NNN-slug`, e **trabalha no worktree**. Os subagentes trabalham na pasta da sessão, então não use `isolation: worktree` no Agent: esse campo cria outro worktree a partir da branch padrão. Se a sessão não estiver no worktree, informe a pasta a cada subagente e confira que ele a usa.
+Quando a demanda veio de uma sessão de coordenação, a branch e o worktree já existem: a sessão confere a pasta e a branch do brief e segue para a etapa 1. Caso contrário, a sessão escolhe o próximo `NNN` no kanban (maior + 1, nunca reutilizado), faz `git fetch`, cria a branch a partir de `origin/<branchPrincipal>` e o worktree em `<pastaWorktrees>/NNN-slug`, e **trabalha no worktree**. Os subagentes trabalham na pasta da sessão, então não use `isolation: worktree` no Agent: esse campo cria outro worktree a partir da branch padrão. Se a sessão não estiver no worktree, informe a pasta a cada subagente e confira que ele a usa.
 
 **Planejamento (opcional):** se a demanda pedir exploração antes da US, acione o agente `Plan`. Ele só lê e entrega escopo, impacto, abordagem, riscos e perguntas.
 
