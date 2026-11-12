@@ -2,7 +2,7 @@
 // Para negar, responde com permissionDecision "deny". O que foge da gramática simples que ela modela é negado.
 // Limite conhecido: lê o texto do comando. Scripts e interpretadores (`node x.mjs`, `./x.sh`, `npm run`) não são inspecionados.
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { appendFileSync, existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 const AGENTS = new Set(['architect', 'developer', 'reviewer']);
@@ -790,6 +790,14 @@ function main() {
   const explicit = process.argv[2];
   if (explicit !== undefined && !AGENTS.has(explicit)) throw new Denied(`agente desconhecido: ${explicit}.`);
   const agent = explicit ?? fluxoAgent(input?.agent_type);
+  // Diagnóstico opcional: FLUXO_GUARD_LOG=<arquivo> registra o agent_type recebido e o agente reconhecido.
+  if (process.env.FLUXO_GUARD_LOG) {
+    try {
+      appendFileSync(process.env.FLUXO_GUARD_LOG, `${JSON.stringify({ agent_type: input?.agent_type ?? null, agent, tool: input?.tool_name ?? null })}\n`);
+    } catch {
+      // O log não pode mudar a decisão.
+    }
+  }
   if (!agent) return;
   const projectDir = process.env.CLAUDE_PROJECT_DIR;
   if (!projectDir) throw new Denied('CLAUDE_PROJECT_DIR não definido.');
