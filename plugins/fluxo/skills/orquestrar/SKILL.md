@@ -28,7 +28,7 @@ Sem o arquivo, o repositório ainda não está no fluxo: ofereça `/fluxo:inicia
 As regras próprias do projeto (comandos de teste, armadilhas, restrições como "migrations uma por vez") ficam nos arquivos de `regras` e **prevalecem** sobre este manual onde forem mais específicas.
 
 ## Sessão de coordenação
-**Qual sessão você é.** O hook `SessionStart` do plugin já informa isso no início da sessão, pela branch. Você é a **sessão da demanda** quando a branch atual é a de uma demanda (`feat/NNN-slug` ou `docs/NNN-slug`) ou quando o pedido que abriu a sessão nomeia a demanda e a pasta dela (o brief da coordenação). Nos outros casos (checkout principal, worktree automático do app, como `claude/<nome>`, ou um pedido como "continuar o desenvolvimento" ou "próxima demanda"), você é a **sessão de coordenação**.
+**Qual sessão você é.** O hook `SessionStart` do plugin já informa isso no início da sessão, pela branch. Você é a **sessão da demanda** quando a branch atual é a de uma demanda (`feat/NNN-slug` ou `docs/NNN-slug`) ou quando a sessão foi aberta pelo brief de uma sessão de coordenação (que nomeia a demanda, a branch e a pasta do worktree). Um pedido do usuário como "vamos fazer a 001" numa sessão que não está na branch da demanda não faz dela a sessão da demanda. Nos outros casos (checkout principal, worktree automático do app, como `claude/<nome>`, ou um pedido como "continuar o desenvolvimento" ou "próxima demanda"), você é a **sessão de coordenação**.
 
 **O que a coordenação faz:**
 1. Lê o kanban, o handoff mais recente e as sessões de demanda já abertas, e conversa com o usuário sobre qual demanda começar ou retomar. Decisões e dúvidas de escopo que já aparecem aqui são resolvidas com o usuário antes de abrir a sessão.
@@ -45,7 +45,9 @@ As regras próprias do projeto (comandos de teste, armadilhas, restrições como
 
 **Depois do merge:** o status `concluída` e o `flow-evaluation.md` são gravados pela sessão da demanda. Se ela já tiver sido encerrada, a coordenação grava, numa branch própria e com PR.
 
-**Sem sessões filhas:** onde não há como abrir outra sessão (no CLI, por exemplo, ou se o usuário pedir para fazer ali), a coordenação avisa o usuário em uma linha e passa a ser a sessão da demanda, a partir da etapa 0, trabalhando no worktree criado.
+**A demanda vai sempre para uma sessão filha.** Isso vale mesmo quando o usuário diz "aqui", "agora" ou "neste repositório": essas palavras indicam o repositório ou o momento, não esta sessão. Não reaproveite a branch nem o worktree de outra sessão para conduzir a demanda aqui; a sessão filha abre na pasta do worktree da demanda.
+
+**Exceções:** a coordenação só passa a ser a sessão da demanda quando o usuário pede explicitamente para não abrir sessão filha (por exemplo, "faça nesta sessão" ou "sem sub-sessão") ou quando não há como abrir outra sessão (no CLI, por exemplo). Ela avisa o usuário em uma linha e segue a partir da etapa 0, no worktree da demanda. **Na dúvida, pergunte** antes de começar, oferecendo abrir a sessão filha como primeira opção.
 
 ## Papéis
 

@@ -29,6 +29,7 @@ function contextFor(branch) {
     `Fluxo orquestrado (plugin fluxo): a branch atual (${branch || 'desconhecida'}) não é de uma demanda, então você é a sessão de coordenação.`,
     'Antes de agir num pedido de desenvolvimento, carregue /fluxo:orquestrar (seção "Sessão de coordenação").',
     'Converse com o usuário sobre o backlog, reserve o NNN, crie a branch e o worktree e abra uma sessão filha por demanda; não acione os subagentes do fluxo aqui.',
+    'A demanda é conduzida sempre numa sessão filha, mesmo quando o usuário diz "aqui", "agora" ou "neste repositório"; só a conduza nesta sessão se ele pedir explicitamente para não abrir sessão filha, ou se não houver como abrir sessões. Na dúvida, pergunte antes de começar.',
     'Pedidos que não são demandas (dúvidas, consultas) você atende normalmente.',
   ].join(' ');
 }
