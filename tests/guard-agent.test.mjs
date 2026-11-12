@@ -379,6 +379,68 @@ test('fluxo.json: branch principal e pastas configuráveis', () => {
   assertAllowed(write('developer', 'docs/handoff/H.md'), 'docs/handoff não é protegido quando a config aponta outra pasta');
 });
 
+test('worktree: a raiz é o worktree do cwd quando ele é do mesmo repositório', () => {
+  // Como no Claude Desktop: CLAUDE_PROJECT_DIR no checkout principal, cwd num worktree dentro dele.
+  const main = join(sandbox, 'principal');
+  makeRepo(main, 'main');
+  mkdirSync(join(main, '.claude'), { recursive: true });
+  writeFileSync(join(main, '.claude', 'fluxo.json'), JSON.stringify({ pastaDemandas: 'docs/demandas' }));
+  git(main, 'add', '.');
+  git(main, 'commit', '-qm', 'fluxo');
+  const worktree = join(main, '.claude', 'worktrees', 'wt');
+  git(main, 'worktree', 'add', '-q', '-b', 'feat/wt', worktree);
+  // A config é lida do worktree: aqui ele muda o handoff sem commit, e o checkout principal não.
+  writeFileSync(join(worktree, '.claude', 'fluxo.json'), JSON.stringify({ pastaDemandas: 'docs/demandas', pastaHandoff: 'docs/retomada' }));
+  const outsideWorktree = join(sandbox, 'fora-wt');
+  git(outside, 'worktree', 'add', '-q', '-b', 'feat/fora-wt', outsideWorktree);
+
+  const write = (agent, file, cwd = worktree, tool = 'Write') =>
+    decisionOf(runGuard(agent, JSON.stringify({ tool_name: tool, tool_input: { file_path: file }, cwd }), { projectDir: main }));
+  const run = (agent, command, cwd = worktree) =>
+    decisionOf(runGuard(agent, JSON.stringify({ tool_name: 'Bash', tool_input: { command }, cwd }), { projectDir: main }));
+
+  assertAllowed(write('architect', join(worktree, 'docs', 'demandas', '001-x', 'us.md')), 'architect: us.md absoluto no worktree');
+  assertAllowed(write('architect', 'docs/demandas/README.md', worktree, 'Edit'), 'architect: kanban relativo no worktree');
+  assertAllowed(write('architect', join(worktree, 'docs', 'demandas', 'README.md').replaceAll('\\', '/'), worktree, 'Edit'), 'architect: barras normais');
+  assertAllowed(run('architect', 'echo x > docs/demandas/001-x/nota.md'), 'architect: redirecionamento no worktree');
+  assertDenied(write('architect', join(worktree, 'src', 'codigo.ts')), 'architect: código no worktree');
+  assertDenied(write('architect', join(main, 'docs', 'demandas', '001-x', 'us.md')), 'architect: checkout principal a partir do worktree');
+
+  assertAllowed(write('developer', join(worktree, 'src', 'novo.ts')), 'developer: dentro do worktree');
+  assertAllowed(write('developer', 'src/novo.ts'), 'developer: relativo no worktree');
+  assertAllowed(run('developer', 'git commit -m x'), 'developer: commit na branch do worktree');
+  assertDenied(write('developer', join(main, 'src', 'novo.ts')), 'developer: checkout principal a partir do worktree');
+  assertDenied(write('developer', join(main, 'a.txt')), 'developer: arquivo do checkout principal');
+  assertDenied(run('developer', `echo x > "${join(main, 'a.txt')}"`), 'developer: redirecionamento para o checkout principal');
+  assertDenied(write('developer', join(worktree, 'docs', 'retomada', 'H.md')), 'developer: handoff do fluxo.json do worktree');
+  assertAllowed(write('developer', join(worktree, 'docs', 'handoff', 'H.md')), 'developer: o handoff do checkout principal não vale no worktree');
+
+  // Worktree de outro repositório não vira raiz: vale o CLAUDE_PROJECT_DIR, e escrever nele é negado.
+  assertDenied(write('architect', join(outsideWorktree, 'docs', 'demandas', 'x.md'), outsideWorktree), 'architect: worktree de outro repositório');
+  assertDenied(write('developer', join(outsideWorktree, 'a.txt'), outsideWorktree), 'developer: worktree de outro repositório');
+  assertDenied(run('developer', 'git commit -m x', outsideWorktree), 'developer: commit em worktree de outro repositório');
+
+  // Sem worktree, o checkout principal segue como antes.
+  assertAllowed(write('architect', join(main, 'docs', 'demandas', '001-x', 'us.md'), main), 'architect: checkout principal com cwd nele');
+  // cwd fora de Git: comportamento anterior.
+  const plain = join(sandbox, 'sem-git');
+  mkdirSync(plain, { recursive: true });
+  assertDenied(write('developer', join(plain, 'a.txt'), plain), 'developer: pasta sem Git');
+});
+
+test('worktree: o handoff do worktree continua somente leitura para o developer', () => {
+  const main = join(sandbox, 'principal-handoff');
+  makeRepo(main, 'main');
+  const worktree = join(main, '.claude', 'worktrees', 'wt');
+  git(main, 'worktree', 'add', '-q', '-b', 'feat/wt', worktree);
+  const write = (file) => decisionOf(runGuard('developer', JSON.stringify({ tool_name: 'Write', tool_input: { file_path: file }, cwd: worktree }), { projectDir: main }));
+  const run = (command) => decisionOf(runGuard('developer', JSON.stringify({ tool_name: 'Bash', tool_input: { command }, cwd: worktree }), { projectDir: main }));
+  assertDenied(write(join(worktree, 'docs', 'handoff', 'NOVO.md')), 'Write no handoff do worktree');
+  assertDenied(write('docs/handoff/NOVO.md'), 'Write relativo no handoff do worktree');
+  assertDenied(run('rm -rf docs'), 'rm amplo que apaga o handoff do worktree');
+  assertAllowed(write(join(worktree, 'docs', 'development', '001-x', 'tasks.md')), 'docs da demanda no worktree');
+});
+
 test('fluxo.json: reviewerComandos libera só os subcomandos listados', () => {
   const dir = join(sandbox, 'reviewer-extra');
   const plain = join(sandbox, 'reviewer-plain');
