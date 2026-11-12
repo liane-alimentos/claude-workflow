@@ -67,6 +67,9 @@ test('branch que não é de demanda: sessão de coordenação', () => {
   assert.match(ctx, /sessão de coordenação/);
   assert.match(ctx, /\/fluxo:orquestrar/);
   assert.match(ctx, /claude\/algum-nome/);
+  // A demanda vai para uma sessão filha mesmo quando o usuário diz "aqui".
+  assert.match(ctx, /sempre numa sessão filha/);
+  assert.match(ctx, /"aqui"/);
 });
 
 test('branch principal: sessão de coordenação', () => {
