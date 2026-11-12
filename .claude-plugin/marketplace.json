@@ -1,0 +1,14 @@
+{
+  "name": "liane",
+  "description": "Plugins do Claude Code da Liane Alimentos.",
+  "owner": {
+    "name": "Liane Alimentos"
+  },
+  "plugins": [
+    {
+      "name": "fluxo",
+      "source": "./plugins/fluxo",
+      "description": "Fluxo orquestrado de demandas com Arquiteto, Developer e Reviewer."
+    }
+  ]
+}
