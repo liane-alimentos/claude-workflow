@@ -113,6 +113,12 @@ Com o veredito `aprovado`, a sessão escreve o handoff em commit próprio (`<pas
 
 Depois do merge, a sessão reúne os dados e grava uma cópia preenchida de `flow-evaluation.md` na pasta da demanda, junto com o status `concluída`. O `developer` não a grava.
 
+## Retomar uma demanda em outra sessão
+Uma branch só pode estar em um worktree por vez. Quando a demanda passa de uma sessão para outra (as Tasks aprovadas numa sessão e a implementação noutra, por exemplo), a branch não pode ficar presa no worktree da sessão anterior.
+
+- **Ao parar antes do fim:** a sessão da demanda que encerra o trabalho antes do PR (por exemplo, com as Tasks aprovadas e a implementação para depois) solta a branch. Ela confere que não há alteração pendente (`git status --porcelain` vazio e tudo commitado), roda `git switch --detach` no seu worktree e registra no kanban e no handoff onde a demanda parou e que a branch está livre.
+- **Ao retomar:** a coordenação abre a sessão filha no worktree da demanda (`<pastaWorktrees>/NNN-slug`), se ele existir. Se a branch estiver presa noutro worktree, a coordenação só a solta se aquele worktree não tiver alteração pendente e se a sessão dele não estiver trabalhando; senão, pergunta ao usuário.
+
 ## Falha de um subagente
 Falha é um agente que trava, encerra com erro ou entrega algo fora do formato obrigatório.
 
@@ -145,6 +151,7 @@ A sessão não assume o trabalho do agente por conta própria.
 - **Nova sessão:** agentes e hooks são lidos no início da sessão; depois de instalar ou atualizar o plugin, reinicie a sessão.
 
 ## Limites da guarda
+- O Reviewer só define antes do comando as variáveis `DOTNET_ROOT`, `DOTNET_ROLL_FORWARD`, `DOTNET_NOLOGO`, `DOTNET_CLI_TELEMETRY_OPTOUT`, `CI`, `NO_COLOR` e `FORCE_COLOR`, com valor simples (caminho ou `$VAR`). As demais (como `PAGER`, `NODE_OPTIONS` e `GIT_*`) mudam o que roda e seguem negadas.
 - Lê o texto do comando e nega o que foge da gramática simples que modela, mas não é uma análise completa de shell. Scripts e interpretadores (`node x.mjs`, `./x.sh`, `npm run`) não são inspecionados. Ela reduz erros; não é uma barreira de segurança completa.
 - A restrição do `npx` do `reviewer` ("só o `tsc`") vale em parte por convenção.
 - Pode negar comandos legítimos que não consegue analisar. O motivo vem na mensagem, e o agente reescreve o comando de forma simples.
