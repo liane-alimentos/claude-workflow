@@ -1,0 +1,99 @@
+# Modelo: mantenha só os jobs das stacks escolhidas e troque os marcadores.
+# Cada job só roda quando a app já tem projeto (job detect), para não falhar antes da demanda 001.
+name: ci
+
+on:
+  pull_request:
+    branches: [{{branch}}]
+  push:
+    branches: [{{branch}}]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # Quais apps já têm projeto. O hashFiles não vale no if de um job, por isso a detecção fica aqui.
+  detect:
+    name: Detectar apps
+    runs-on: ubuntu-latest
+    outputs:
+      dotnet: ${{ steps.d.outputs.dotnet }}
+      python: ${{ steps.d.outputs.python }}
+      web: ${{ steps.d.outputs.web }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: d
+        shell: bash
+        run: |
+          has() { [ -n "$(find "$1" -name "$2" -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ] && echo true || echo false; }
+          echo "dotnet=$(has apps/{{backend}} '*.csproj')" >> "$GITHUB_OUTPUT"
+          echo "python=$(has apps/{{backend}} pyproject.toml)" >> "$GITHUB_OUTPUT"
+          echo "web=$(has apps/{{frontend}} package.json)" >> "$GITHUB_OUTPUT"
+
+  # --- backend .NET ---
+  api-dotnet:
+    name: API (.NET)
+    runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.dotnet == 'true'
+    defaults:
+      run:
+        working-directory: apps/{{backend}}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - run: dotnet restore
+      - run: dotnet build --no-restore -c Release
+      - run: dotnet test --no-build -c Release
+
+  # --- backend Python ---
+  api-python:
+    name: API (Python)
+    runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.python == 'true'
+    defaults:
+      run:
+        working-directory: apps/{{backend}}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install poetry && poetry install --no-interaction
+      - run: poetry run ruff check .
+      - run: poetry run ruff format --check .
+      - run: poetry run pytest
+
+  # --- backend Node.js / frontend (pnpm) ---
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.web == 'true'
+    defaults:
+      run:
+        working-directory: apps/{{frontend}}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/{{frontend}}/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: apps/{{frontend}}/pnpm-lock.yaml
+      # O design system vem do GitHub Packages; o GITHUB_TOKEN do workflow lê pacotes da organização.
+      - run: pnpm install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: pnpm lint
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm test
+      - run: pnpm build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
