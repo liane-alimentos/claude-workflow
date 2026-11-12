@@ -379,6 +379,43 @@ test('fluxo.json: branch principal e pastas configuráveis', () => {
   assertAllowed(write('developer', 'docs/handoff/H.md'), 'docs/handoff não é protegido quando a config aponta outra pasta');
 });
 
+test('fluxo.json: reviewerComandos libera só os subcomandos listados', () => {
+  const dir = join(sandbox, 'reviewer-extra');
+  const plain = join(sandbox, 'reviewer-plain');
+  makeRepo(dir, 'feat/teste');
+  makeRepo(plain, 'feat/teste');
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  writeFileSync(join(dir, '.claude', 'fluxo.json'), JSON.stringify({ reviewerComandos: { dotnet: ['build', 'test'] } }));
+  const run = (command, projectDir = dir) => decisionOf(runGuard('reviewer', JSON.stringify({ tool_name: 'Bash', tool_input: { command }, cwd: projectDir }), { projectDir }));
+
+  assertAllowed(run('dotnet build apps/api/src/api/Api'), 'dotnet build');
+  assertAllowed(run('dotnet test .tmp/testes/T.csproj --no-restore'), 'dotnet test');
+  assertAllowed(run('cd apps/api && dotnet test'), 'dotnet test depois de cd');
+  assertDenied(run('dotnet ef database update'), 'dotnet ef');
+  assertDenied(run('dotnet add package X'), 'dotnet add');
+  assertDenied(run('dotnet'), 'dotnet sem subcomando');
+  assertDenied(run('dotnet build -o ../fora'), 'dotnet build com saída fora');
+  assertDenied(run('dotnet build', plain), 'sem a configuração, dotnet segue negado');
+  assertDenied(run('touch x'), 'a configuração não libera escrita');
+});
+
+test('fluxo.json: reviewerComandos inválido nega', () => {
+  const cases = {
+    lista: JSON.stringify({ reviewerComandos: ['dotnet'] }),
+    vazio: JSON.stringify({ reviewerComandos: { dotnet: [] } }),
+    shell: JSON.stringify({ reviewerComandos: { bash: ['-c'] } }),
+    git: JSON.stringify({ reviewerComandos: { git: ['push'] } }),
+    subcomando: JSON.stringify({ reviewerComandos: { dotnet: ['build;rm'] } }),
+  };
+  for (const [name, content] of Object.entries(cases)) {
+    const dir = join(sandbox, `rcfg-${name}`);
+    makeRepo(dir, 'feat/teste');
+    mkdirSync(join(dir, '.claude'), { recursive: true });
+    writeFileSync(join(dir, '.claude', 'fluxo.json'), content);
+    assertDenied(decisionOf(runGuard('reviewer', JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git status' }, cwd: dir }), { projectDir: dir })), name);
+  }
+});
+
 test('fluxo.json inválido ou com caminho para fora nega', () => {
   const cases = { invalido: '{', fora: JSON.stringify({ pastaDemandas: '../x' }), absoluto: JSON.stringify({ pastaHandoff: 'C:/x' }), branch: JSON.stringify({ branchPrincipal: 'a b' }) };
   for (const [name, content] of Object.entries(cases)) {

@@ -70,6 +70,28 @@ class Denied extends Error {}
 // Configuração do projeto em .claude/fluxo.json. Sem o arquivo, valem os padrões abaixo.
 const DEFAULT_CONFIG = Object.freeze({ branchPrincipal: 'main', pastaDemandas: 'docs/development', pastaHandoff: 'docs/handoff' });
 let CONFIG = DEFAULT_CONFIG;
+// Comandos extras do Reviewer (reviewerComandos), por programa e subcomando. Ex.: { "dotnet": ["build", "test"] }.
+let REVIEWER_EXTRAS = new Map();
+// Programas que nunca entram em reviewerComandos: executam outro comando, alteram o Git ou gravam arquivos.
+const NEVER_REVIEWER_EXTRA = new Set(['git', 'gh', 'eval', 'node', 'npm', 'npx']);
+
+function loadReviewerExtras(value) {
+  if (value === undefined) return new Map();
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Denied('.claude/fluxo.json: reviewerComandos deve ser um objeto { programa: [subcomandos] }.');
+  const extras = new Map();
+  for (const [program, subcommands] of Object.entries(value)) {
+    const name = program.toLowerCase();
+    if (!/^[a-z][\w.-]*$/.test(name) || SHELLS.has(name) || OPAQUE_EXECUTORS.has(name) || WRAPPERS.has(name) || WRITE_COMMANDS.has(name)
+      || NEVER_REVIEWER_EXTRA.has(name) || DIRECTORY_COMMANDS.has(name)) {
+      throw new Denied(`.claude/fluxo.json: ${program} não pode entrar em reviewerComandos.`);
+    }
+    if (!Array.isArray(subcommands) || !subcommands.length || !subcommands.every((sub) => typeof sub === 'string' && /^[a-z][\w-]*$/i.test(sub))) {
+      throw new Denied(`.claude/fluxo.json: reviewerComandos.${program} deve ser uma lista de subcomandos simples.`);
+    }
+    extras.set(name, new Set(subcommands));
+  }
+  return extras;
+}
 
 function loadConfig(projectDir) {
   const file = join(projectDir, '.claude', 'fluxo.json');
@@ -92,6 +114,7 @@ function loadConfig(projectDir) {
     }
     config[key] = value.replace(/[/\\]+$/, '');
   }
+  REVIEWER_EXTRAS = loadReviewerExtras(raw.reviewerComandos);
   return Object.freeze(config);
 }
 
@@ -639,6 +662,14 @@ function writeTargets(program, args) {
 
 // O Reviewer só lê, e alguns programas de leitura gravam ou executam por argumento.
 function checkReviewerArguments(program, args) {
+  if (REVIEWER_EXTRAS.has(program)) {
+    const allowed = REVIEWER_EXTRAS.get(program);
+    if (!allowed.has(args[0] ?? '')) throw new Denied(`o Reviewer só usa ${program} ${[...allowed].join(', ')}; ${program} ${args[0] ?? ''} não está liberado.`);
+    if (args.some((arg) => /^(-o|--output|--out|-out|--results-directory|--diag)([=:].*)?$/i.test(arg) || /^-o./.test(arg))) {
+      throw new Denied(`o Reviewer não usa opções de saída em ${program}.`);
+    }
+    return;
+  }
   if (program === 'npm' && args[0] !== 'test' && args[0] !== 'run') throw new Denied(`o Reviewer só usa npm test e npm run; npm ${args[0] ?? ''} não está liberado.`);
   if (program === 'npx') {
     // Só a checagem de tipos. Sem --no-install, o npx baixaria e executaria um pacote da internet.
@@ -682,7 +713,7 @@ function checkSegment(agent, rawTokens, state, projectDir, isKnownDirectoryChang
   const args = words.slice(1);
 
   if (/^git-/.test(program)) throw new Denied(`${program} executa o Git sem passar pelas regras; use git.`);
-  if (agent === 'reviewer' && !REVIEWER_PROGRAMS.has(program)) throw new Denied(`o Reviewer só lê; ${program} não está liberado.`);
+  if (agent === 'reviewer' && !REVIEWER_PROGRAMS.has(program) && !REVIEWER_EXTRAS.has(program)) throw new Denied(`o Reviewer só lê; ${program} não está liberado.`);
   if (agent === 'reviewer') checkReviewerArguments(program, args);
   if (OPAQUE_EXECUTORS.has(program)) throw new Denied(`${program} executa algo que a guarda não consegue ler.`);
   if ((program === 'export' || program === 'declare' || program === 'typeset' || program === 'set') && args.some((arg) => /^GIT_/i.test(arg))) {

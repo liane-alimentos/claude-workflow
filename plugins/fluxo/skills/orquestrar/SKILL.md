@@ -19,6 +19,7 @@ Leia `.claude/fluxo.json` na raiz do repositório antes de tudo. Campos (todos o
 | `pastaHandoff` | `docs/handoff` | Handoffs de sessão, somente leitura depois de escritos |
 | `pastaWorktrees` | `../worktrees` | Onde criar o worktree de cada demanda |
 | `regras` | `AGENT.md`, `CLAUDE.md` | Arquivos de regras que todo agente lê |
+| `reviewerComandos` | nenhum | Programas e subcomandos extras que o Reviewer pode rodar para build e testes, ex.: `{ "dotnet": ["build", "test"] }`. Shells, `git`, `gh`, `node`, `npm`, `npx` e comandos de escrita não entram |
 
 Sem o arquivo, o repositório ainda não está no fluxo: ofereça `/fluxo:iniciar`.
 
