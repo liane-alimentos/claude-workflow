@@ -9,6 +9,11 @@
       "name": "fluxo",
       "source": "./plugins/fluxo",
       "description": "Fluxo orquestrado de demandas com Arquiteto, Developer e Reviewer."
+    },
+    {
+      "name": "worktrees",
+      "source": "./plugins/worktrees",
+      "description": "Painel /worktrees: uso, conclusão e tamanho das git worktrees, com atalho para a sessão e remoção segura."
     }
   ]
 }

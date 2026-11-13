@@ -1,0 +1,17 @@
+{
+  "name": "worktrees",
+  "version": "0.1.0",
+  "description": "Painel /worktrees: acompanha as git worktrees dos projetos (em uso, com trabalho, concluídas, tamanho em disco), abre a sessão de cada uma e remove as que não perdem nada.",
+  "author": {
+    "name": "Liane Alimentos"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "raizes": {
+      "type": "string",
+      "title": "Pastas dos projetos",
+      "description": "Pastas onde ficam os repositórios, separadas por ponto e vírgula. Cada repositório direto nelas é varrido.",
+      "default": "C:\\projetos\\liane"
+    }
+  }
+}
