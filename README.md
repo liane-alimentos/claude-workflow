@@ -1,6 +1,6 @@
 # claude-workflow
 
-Marketplace de plugins do Claude Code da Liane Alimentos. Hoje tem um plugin: **`fluxo`**, o fluxo orquestrado de demandas criado no repositório `sales-force` (demanda 005).
+Marketplace de plugins do Claude Code da Liane Alimentos. Hoje tem dois plugins: **`fluxo`**, o fluxo orquestrado de demandas criado no repositório `sales-force` (demanda 005), e **`worktrees`**, um painel para acompanhar e limpar as git worktrees.
 
 ## O que o plugin `fluxo` traz
 - **Agentes** `fluxo:architect` (opus), `fluxo:developer` (sonnet) e `fluxo:reviewer` (opus).
@@ -9,12 +9,22 @@ Marketplace de plugins do Claude Code da Liane Alimentos. Hoje tem um plugin: **
 - **Skill `/fluxo:nova-aplicacao`**: cria uma aplicação nova no padrão da casa. Pergunta o objetivo, se há backend e frontend (stack e nome do client Keycloak de cada um) e se haverá CI/CD; cria `apps/`, `docs/`, README, `CLAUDE.md`, o fluxo, o plano de deploy com o Keycloak e o `infra`, o design system no frontend e os workflows do GitHub Actions. O esqueleto das apps fica como a demanda 001.
 - **Skills** `/fluxo:orquestrar` (manual da sessão principal: a sessão de coordenação abre uma sessão por demanda, e a sessão da demanda conduz as etapas) e `/fluxo:iniciar` (prepara um repositório para o fluxo, com templates de US, Spec, Tasks e avaliação).
 
+## O que o plugin `worktrees` traz
+Um painel, aberto com `/worktrees`, que varre os repositórios das pastas configuradas (padrão `C:\projetos\liane`) e mostra cada git worktree: status, tamanho em disco, branch, PR e a sessão do app que trabalha nela.
+- **Status**: em uso (sessão nas últimas 3 h), com trabalho (arquivos sem commit ou commits só na máquina), aguardando (PR aberto ou mexida recente) e pode liberar (PR merged ou fechado, tudo já na branch principal, parada há mais de 7 dias com tudo enviado, ou pasta órfã).
+- **Filtro**: os cards do topo filtram a lista por status.
+- **Sessão**: clicar no nome da worktree (↗) abre a sessão do app desktop que trabalha nela.
+- **Remoção**: só para o que não perde nada, sempre com confirmação. Usa `git worktree remove` sem `--force` e apaga a branch local quando ela já foi merged.
+- A barra de status mostra quanto dá para liberar. A varredura roda ao abrir a sessão e a cada 30 minutos.
+- Opção `raizes`: as pastas varridas, separadas por `;`.
+
 ## Instalar
 Uma vez por máquina:
 
 ```bash
 claude plugin marketplace add liane-alimentos/claude-workflow
 claude plugin install fluxo@liane
+claude plugin install worktrees@liane
 claude plugin install pr-review-toolkit@claude-plugins-official
 ```
 
@@ -28,6 +38,7 @@ Cada repositório tem um `.claude/fluxo.json` com o que foge do padrão (branch 
 - Mudou o plugin? Suba a `version` em `plugins/fluxo/.claude-plugin/plugin.json`, abra PR e, depois do merge, rode `claude plugin marketplace update liane` nas máquinas.
 
 ## Changelog
+- **worktrees 0.1.0**: primeira versão do painel `/worktrees`.
 - **1.4.0** — Skill `/fluxo:nova-aplicacao`: perguntas (objetivo, backend, frontend, stacks, clients Keycloak, CI/CD, branch), estrutura `apps/<backend>`, `apps/<frontend>` e `docs/`, README, `CLAUDE.md` com as regras da casa (Keycloak por client roles e groups, design system `@liane-alimentos/ui`), fluxo orquestrado pronto, `docs/deploy/DEPLOY.md` com os passos no Keycloak e no `infra`, e `ci.yml`/`publish.yml` que só rodam quando a app já tem projeto. Repositório no GitHub só com o ok do usuário.
 - **1.3.2** — A guarda deixa o Reviewer definir antes do comando as variáveis inofensivas `DOTNET_ROOT`, `DOTNET_ROLL_FORWARD`, `DOTNET_NOLOGO`, `DOTNET_CLI_TELEMETRY_OPTOUT`, `CI`, `NO_COLOR` e `FORCE_COLOR`, com valor simples; antes, `DOTNET_ROOT=$HOME/.dotnet dotnet test` era negado. O comando em si segue as regras do Reviewer. No `/fluxo:orquestrar`, nova seção "Retomar uma demanda em outra sessão": quem para antes do PR solta a branch (`git switch --detach`, sem alteração pendente) e a coordenação abre a sessão filha no worktree da demanda.
 - **1.3.1** — A coordenação conduz a demanda sempre numa sessão filha. "Aqui", "agora" ou "neste repositório" não bastam para fazer a demanda na própria sessão: só um pedido explícito para não abrir sessão filha, ou a falta de como abrir sessões (CLI). Na dúvida, a sessão pergunta. O hook `SessionStart` repete a regra, e um pedido como "vamos fazer a 001" não transforma a coordenação na sessão da demanda.
