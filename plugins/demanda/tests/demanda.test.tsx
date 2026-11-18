@@ -24,7 +24,7 @@ const TASKS = `# 007-painel-pedidos — Tasks
 |---|---|---|---|---|
 | 1 | Testes da lista (CA-1) | §Estratégia | falham antes | ☑ |
 | 2 | Implementar a lista | §Mudanças › Backend | teste 1 passa | ◐ |
-| 3 | Ajustar o layout | §Mudanças › Frontend | manual | ☐ |
+| 3 | Catálogo do **Pype**.<br>Criar \`src/pype.ts\`:<br>• os passos | §Mudanças › Catálogo | \`pype.test.ts\` passa<br>salvo o caso 4 | ☐ |
 `
 
 const PANE = {
@@ -84,6 +84,9 @@ test('lê o cabeçalho, a etapa e as tasks', () => {
   const t = lerTasks(TASKS)
   expect(t.map(x => x.estado)).toEqual(['feita', 'andamento', 'pendente'])
   expect(t[1]?.spec).toBe('§Mudanças › Backend')
+  expect(t[2]?.titulo).toBe('Catálogo do Pype.')
+  expect(t[2]?.detalhe).toBe('Criar `src/pype.ts`:\n• os passos')
+  expect(t[2]?.verificacao).toBe('`pype.test.ts` passa\nsalvo o caso 4')
 })
 
 test('acha a demanda pela branch e mostra as tasks, em todo surface', async ($, on) => {
@@ -101,6 +104,12 @@ test('acha a demanda pela branch e mostra as tasks, em todo surface', async ($, 
     await ui.press({ key: 'aba:us' })
     expect(await ui.find({ type: 'Text', text: /Implementar a lista/ })).toBeFalsy()
     await ui.press({ key: 'aba:tasks' })
+    // A task 3 mostra só o título; o detalhe abre ao clicar nela.
+    expect(await ui.find({ type: 'Text', text: /^Catálogo do Pype.$/ })).toBeTruthy()
+    expect(JSON.stringify(await ui.drawn())).not.toContain('src/pype.ts')
+    await ui.press({ key: 'task:3' })
+    expect(JSON.stringify(await ui.drawn())).toContain('src/pype.ts')
+    await ui.press({ key: 'task:3' })
     await ui.unmount()
   }
 })

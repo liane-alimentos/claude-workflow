@@ -9,7 +9,7 @@ const PASTA_PADRAO = 'docs/development'
 const RELER_MS = 20_000
 
 const atual = atom({ plugin: 'demanda', key: 'atual' } as const, null as Demanda | null, {
-  shape: 'atual-1',
+  shape: 'atual-2',
 })
 const contexto = atom(
   { plugin: 'demanda', key: 'contexto' } as const,
@@ -17,6 +17,7 @@ const contexto = atom(
   { shape: 'contexto-1' },
 )
 const aba = atom({ plugin: 'demanda', key: 'aba' } as const, 'us' as Aba)
+const abertas = atom({ plugin: 'demanda', key: 'abertas' } as const, [] as string[])
 
 /** Branch de demanda do fluxo: feat/NNN-slug ou docs/NNN-slug. */
 const BRANCH = /^(?:feat|docs)\/(\d{3}[a-z]?-[a-z0-9][a-z0-9-]*)$/
@@ -75,6 +76,25 @@ function estado(celula: string): Task['estado'] {
   return 'pendente'
 }
 
+/** Uma célula de tabela em markdown de bloco: `<br>` vira quebra de linha. */
+export function celulaMd(c: string) {
+  return c
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\\\|/g, '|')
+    .split('\n')
+    .map(l => l.trim())
+    .join('\n')
+    .trim()
+}
+
+/** Texto de uma linha sem a marcação de markdown (para títulos curtos). */
+export function semMarcacao(t: string) {
+  return t
+    .replace(/\*\*|__|`/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .trim()
+}
+
 /** As linhas da tabela de tasks (colunas #, Task, Spec, Verificação, Status). */
 export function lerTasks(md: string | null): Task[] {
   if (!md) return []
@@ -96,13 +116,15 @@ export function lerTasks(md: string | null): Task[] {
     const c = celulas(l)
     if (c.every(x => /^:?-{2,}:?$/.test(x) || x === '')) continue
     const pega = (i: number) => (i >= 0 ? (c[i] ?? '') : '')
-    const texto = pega(cT)
+    const texto = celulaMd(pega(cT))
     if (!texto) continue
+    const [primeira = '', ...resto] = texto.split('\n')
     out.push({
       n: pega(cN) || String(out.length + 1),
-      texto: texto.replace(/\*\*/g, ''),
-      spec: pega(cS),
-      verificacao: pega(cV),
+      titulo: semMarcacao(primeira),
+      detalhe: resto.join('\n').trim(),
+      spec: celulaMd(pega(cS)),
+      verificacao: celulaMd(pega(cV)),
       estado: estado(pega(cE)),
     })
   }
@@ -258,6 +280,7 @@ export const register: Register = on => {
     const d = await read($, atual)
     const ctx = await read($, contexto)
     const abaAtual = await read($, aba)
+    const abertasAgora = await read($, abertas)
     const isTerminal = e.surface === 'terminal'
 
     if (!d) {
@@ -296,6 +319,8 @@ export const register: Register = on => {
     const et = etapa(d.status)
     const feitas = d.lista.filter(t => t.estado === 'feita').length
     const andamento = d.lista.filter(t => t.estado === 'andamento').length
+    // A task da vez: a primeira em andamento, senão a primeira pendente.
+    const atualN = (d.lista.find(t => t.estado === 'andamento') ?? d.lista.find(t => t.estado === 'pendente'))?.n
     const texto = abaAtual === 'us' ? d.us : abaAtual === 'spec' ? d.spec : d.tasks
     const nomeArquivo = `${abaAtual}.md`
     const abas: { id: Aba; label: string; existe: boolean }[] = [
@@ -379,23 +404,57 @@ export const register: Register = on => {
         {texto === null ? (
           <Text dimColor>{`${nomeArquivo} ainda não foi escrito.`}</Text>
         ) : abaAtual === 'tasks' && d.lista.length > 0 ? (
-          <Box flexDirection="column" gap={1}>
-            {d.lista.map(t => (
-              <Box flexDirection="column" borderStyle="round" borderColor={t.estado === 'feita' ? 'success' : t.estado === 'andamento' ? 'warning' : 'subtle'} paddingX={1}>
-                <Box flexDirection="row" gap={1}>
-                  <Text color={t.estado === 'feita' ? 'success' : t.estado === 'andamento' ? 'warning' : undefined} bold>
-                    {t.estado === 'feita' ? '☑' : t.estado === 'andamento' ? '◐' : '☐'}
-                  </Text>
-                  <Text bold dimColor={t.estado === 'feita'}>{`${t.n}.`}</Text>
-                  <Text dimColor={t.estado === 'feita'}>{t.texto}</Text>
+          <Box flexDirection="column">
+            <Box flexDirection="row" justifyContent="flex-end">
+              <Button
+                key="tasks:todas"
+                plain
+                onPress={() =>
+                  update($, abertas, cur => (cur.length > 0 ? [] : d.lista.map(t => t.n)))
+                }
+              >
+                <Text dimColor size="caption">{abertasAgora.length > 0 ? 'Recolher todas' : 'Expandir todas'}</Text>
+              </Button>
+            </Box>
+            {d.lista.map(t => {
+              const aberta = abertasAgora.includes(t.n)
+              const ehAtual = t.n === atualN
+              const cor = t.estado === 'feita' ? 'success' : t.estado === 'andamento' ? 'warning' : ehAtual ? 'claude' : undefined
+              const corpo = [
+                t.detalhe,
+                t.spec && `**Spec:** ${t.spec}`,
+                t.verificacao && `**Verificação:** ${t.verificacao}`,
+              ]
+                .filter(Boolean)
+                .join('\n\n')
+              return (
+                <Box flexDirection="column" paddingY={0}>
+                  <Box flexDirection="row" gap={1}>
+                    <Text color={cor} bold>
+                      {t.estado === 'feita' ? '☑' : t.estado === 'andamento' ? '◐' : '☐'}
+                    </Text>
+                    <Text bold dimColor={t.estado === 'feita'} tabular>{`${t.n.padStart(2, ' ')}.`}</Text>
+                    <Button
+                      key={`task:${t.n}`}
+                      plain
+                      onPress={() =>
+                        update($, abertas, cur => (cur.includes(t.n) ? cur.filter(x => x !== t.n) : [...cur, t.n]))
+                      }
+                    >
+                      <Text dimColor={t.estado === 'feita'} bold={ehAtual} color={ehAtual ? cor : undefined}>
+                        {t.titulo || '(sem título)'}
+                      </Text>
+                      {corpo ? <Text dimColor>{aberta ? '  ▾' : '  ▸'}</Text> : null}
+                    </Button>
+                  </Box>
+                  {aberta && corpo && (
+                    <Box paddingLeft={5} marginBottom={1}>
+                      {isTerminal ? <Text dimColor>{corpo}</Text> : <Markdown text={corpo} />}
+                    </Box>
+                  )}
                 </Box>
-                {(t.spec || t.verificacao) && (
-                  <Text dimColor size="footnote">
-                    {[t.spec && `Spec: ${t.spec}`, t.verificacao && `Verificação: ${t.verificacao}`].filter(Boolean).join('  ·  ')}
-                  </Text>
-                )}
-              </Box>
-            ))}
+              )
+            })}
           </Box>
         ) : isTerminal ? (
           <Text>{texto}</Text>
