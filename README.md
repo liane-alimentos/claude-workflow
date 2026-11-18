@@ -1,6 +1,6 @@
 # claude-workflow
 
-Marketplace de plugins do Claude Code da Liane Alimentos. Hoje tem dois plugins: **`fluxo`**, o fluxo orquestrado de demandas criado no repositório `sales-force` (demanda 005), e **`worktrees`**, um painel para acompanhar e limpar as git worktrees.
+Marketplace de plugins do Claude Code da Liane Alimentos. Hoje tem três plugins: **`fluxo`**, o fluxo orquestrado de demandas criado no repositório `sales-force` (demanda 005), **`worktrees`**, um painel para acompanhar e limpar as git worktrees, e **`demanda`**, um painel com a US, a Spec e as Tasks da demanda em que a sessão trabalha.
 
 ## O que o plugin `fluxo` traz
 - **Agentes** `fluxo:architect` (opus), `fluxo:developer` (sonnet) e `fluxo:reviewer` (opus).
@@ -18,6 +18,13 @@ Um painel, aberto com `/worktrees`, que varre os repositórios das pastas config
 - A barra de status mostra quanto dá para liberar. A varredura roda ao abrir a sessão e a cada 30 minutos.
 - Opção `raizes`: as pastas varridas, separadas por `;`.
 
+## O que o plugin `demanda` traz
+Um painel, aberto com `/demanda` (e sozinho quando a sessão entra numa demanda), com a demanda do fluxo em que a sessão está trabalhando.
+- **Qual demanda**: a da branch (`feat/NNN-slug` ou `docs/NNN-slug`) em `<pastaDemandas>` do `.claude/fluxo.json`; fora dela, a dos arquivos `us.md`, `spec.md` ou `tasks.md` que a sessão ou um subagente dela leu ou escreveu. Sem nenhuma das duas, o painel lista as demandas da pasta para escolher.
+- **Etapas**: US → Spec → Tasks → Implementação → Review → Concluída, a partir do status do `us.md`, marcando quando a etapa aguarda a sua aprovação.
+- **Abas** US, Spec e Tasks com o conteúdo dos arquivos. Na aba Tasks, cada linha da tabela com o estado (☐ pendente, ◐ em andamento, ☑ feita), a seção da Spec, a verificação e a barra de andamento.
+- Releitura a cada 20 s e depois das ferramentas da sessão; a barra de status mostra a demanda, o status e as tasks feitas.
+
 ## Instalar
 Uma vez por máquina:
 
@@ -25,6 +32,7 @@ Uma vez por máquina:
 claude plugin marketplace add liane-alimentos/claude-workflow
 claude plugin install fluxo@liane
 claude plugin install worktrees@liane
+claude plugin install demanda@liane
 claude plugin install pr-review-toolkit@claude-plugins-official
 ```
 
@@ -34,10 +42,11 @@ Nos repositórios que já adotaram o fluxo, o `.claude/settings.json` declara o 
 Cada repositório tem um `.claude/fluxo.json` com o que foge do padrão (branch principal, pasta de demandas, kanban, handoff, arquivos de regras). Campos e padrões em [`skills/orquestrar/SKILL.md`](plugins/fluxo/skills/orquestrar/SKILL.md).
 
 ## Desenvolver
-- `npm test` roda as suítes da guarda e do hook de início de sessão (Node 20+).
+- `npm test` roda as suítes da guarda e do hook de início de sessão (Node 20+). Os painéis (`worktrees`, `demanda`) se testam com `claude plugin test plugins/<nome>`.
 - Mudou o plugin? Suba a `version` em `plugins/fluxo/.claude-plugin/plugin.json`, abra PR e, depois do merge, rode `claude plugin marketplace update liane` nas máquinas.
 
 ## Changelog
+- **demanda 0.1.0**: primeira versão do painel `/demanda`.
 - **worktrees 0.1.0**: primeira versão do painel `/worktrees`.
 - **1.4.0** — Skill `/fluxo:nova-aplicacao`: perguntas (objetivo, backend, frontend, stacks, clients Keycloak, CI/CD, branch), estrutura `apps/<backend>`, `apps/<frontend>` e `docs/`, README, `CLAUDE.md` com as regras da casa (Keycloak por client roles e groups, design system `@liane-alimentos/ui`), fluxo orquestrado pronto, `docs/deploy/DEPLOY.md` com os passos no Keycloak e no `infra`, e `ci.yml`/`publish.yml` que só rodam quando a app já tem projeto. Repositório no GitHub só com o ok do usuário.
 - **1.3.2** — A guarda deixa o Reviewer definir antes do comando as variáveis inofensivas `DOTNET_ROOT`, `DOTNET_ROLL_FORWARD`, `DOTNET_NOLOGO`, `DOTNET_CLI_TELEMETRY_OPTOUT`, `CI`, `NO_COLOR` e `FORCE_COLOR`, com valor simples; antes, `DOTNET_ROOT=$HOME/.dotnet dotnet test` era negado. O comando em si segue as regras do Reviewer. No `/fluxo:orquestrar`, nova seção "Retomar uma demanda em outra sessão": quem para antes do PR solta a branch (`git switch --detach`, sem alteração pendente) e a coordenação abre a sessão filha no worktree da demanda.

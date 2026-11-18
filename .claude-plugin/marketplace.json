@@ -14,6 +14,11 @@
       "name": "worktrees",
       "source": "./plugins/worktrees",
       "description": "Painel /worktrees: uso, conclusão e tamanho das git worktrees, com atalho para a sessão e remoção segura."
+    },
+    {
+      "name": "demanda",
+      "source": "./plugins/demanda",
+      "description": "Painel /demanda: US, Spec e Tasks da demanda do fluxo em que a sessão trabalha, com a etapa e o andamento das tasks."
     }
   ]
 }
