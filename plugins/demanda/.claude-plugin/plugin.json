@@ -1,0 +1,9 @@
+{
+  "name": "demanda",
+  "version": "0.1.0",
+  "description": "Painel /demanda: mostra a US, a Spec e as Tasks da demanda do fluxo em que a sessão está trabalhando, com o status e o andamento das tasks.",
+  "author": {
+    "name": "Liane Alimentos"
+  },
+  "types": "./types/index.d.ts"
+}
