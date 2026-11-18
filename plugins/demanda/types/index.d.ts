@@ -2,7 +2,10 @@ export type Aba = 'us' | 'spec' | 'tasks'
 
 export type Task = {
   n: string
-  texto: string
+  /** A primeira linha da célula (até o primeiro `<br>`), sem marcação. */
+  titulo: string
+  /** O resto da célula, em markdown, com os `<br>` virados em quebras de linha. */
+  detalhe: string
   spec: string
   verificacao: string
   estado: 'feita' | 'andamento' | 'pendente'
@@ -39,6 +42,8 @@ declare module 'claude-code' {
       atual: Shaped<Demanda | null>
       contexto: Shaped<Contexto>
       aba: Aba
+      /** Números das tasks com o detalhe aberto. */
+      abertas: string[]
     }
   }
 }

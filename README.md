@@ -22,7 +22,7 @@ Um painel, aberto com `/worktrees`, que varre os repositórios das pastas config
 Um painel, aberto com `/demanda` (e sozinho quando a sessão entra numa demanda), com a demanda do fluxo em que a sessão está trabalhando.
 - **Qual demanda**: a da branch (`feat/NNN-slug` ou `docs/NNN-slug`) em `<pastaDemandas>` do `.claude/fluxo.json`; fora dela, a dos arquivos `us.md`, `spec.md` ou `tasks.md` que a sessão ou um subagente dela leu ou escreveu. Sem nenhuma das duas, o painel lista as demandas da pasta para escolher.
 - **Etapas**: US → Spec → Tasks → Implementação → Review → Concluída, a partir do status do `us.md`, marcando quando a etapa aguarda a sua aprovação.
-- **Abas** US, Spec e Tasks com o conteúdo dos arquivos. Na aba Tasks, cada linha da tabela com o estado (☐ pendente, ◐ em andamento, ☑ feita), a seção da Spec, a verificação e a barra de andamento.
+- **Abas** US, Spec e Tasks com o conteúdo dos arquivos. Na aba Tasks, uma linha por task com o estado (☐ pendente, ◐ em andamento, ☑ feita) e o título, com a task da vez destacada e a barra de andamento; clicar na task abre o detalhe, a seção da Spec e a verificação.
 - Releitura a cada 20 s e depois das ferramentas da sessão; a barra de status mostra a demanda, o status e as tasks feitas.
 
 ## Instalar
@@ -46,6 +46,7 @@ Cada repositório tem um `.claude/fluxo.json` com o que foge do padrão (branch 
 - Mudou o plugin? Suba a `version` em `plugins/fluxo/.claude-plugin/plugin.json`, abra PR e, depois do merge, rode `claude plugin marketplace update liane` nas máquinas.
 
 ## Changelog
+- **demanda 0.1.1**: aba Tasks compacta: uma linha por task com o título (até o primeiro `<br>`), a task da vez destacada e o detalhe, a Spec e a verificação abertos ao clicar, em markdown.
 - **demanda 0.1.0**: primeira versão do painel `/demanda`.
 - **worktrees 0.1.0**: primeira versão do painel `/worktrees`.
 - **1.4.0** — Skill `/fluxo:nova-aplicacao`: perguntas (objetivo, backend, frontend, stacks, clients Keycloak, CI/CD, branch), estrutura `apps/<backend>`, `apps/<frontend>` e `docs/`, README, `CLAUDE.md` com as regras da casa (Keycloak por client roles e groups, design system `@liane-alimentos/ui`), fluxo orquestrado pronto, `docs/deploy/DEPLOY.md` com os passos no Keycloak e no `infra`, e `ci.yml`/`publish.yml` que só rodam quando a app já tem projeto. Repositório no GitHub só com o ok do usuário.
