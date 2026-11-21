@@ -50,9 +50,10 @@ Os nomes são o `client_id` no realm `liane` e o prefixo dos groups (`/apps/<cli
     {{frontend}}/.npmrc          escopo @liane-alimentos no GitHub Packages (se houver frontend)
   docs/
     demandas/README.md           kanban, com a 001 no backlog
-    demandas/_template/          modelos us, spec, tasks, flow-evaluation
+    demandas/_template/          modelos us, spec, tasks, bug, flow-evaluation
     handoff/README.md
     deploy/DEPLOY.md             plano de implantação: Keycloak, infra, variáveis
+    releases/pendentes/README.md notas de implantação à espera do /fluxo:publicar
   .github/workflows/ci.yml       se houver CI
   .github/workflows/publish.yml  se houver publicação de imagem
 ```
@@ -86,10 +87,11 @@ No `ci.yml`, um backend Node.js usa uma cópia do job `web` apontando para `apps
 
 ## 4. Arquivos
 - **`README.md`**, **`CLAUDE.md`**, **`docs/deploy/DEPLOY.md`**, **`apps/*/README.md`**: dos modelos em `templates/`, preenchidos.
-- **`.claude/fluxo.json`**: `{ "branchPrincipal": "{{branch}}", "pastaDemandas": "docs/demandas", "kanban": "docs/demandas/README.md", "pastaHandoff": "docs/handoff", "pastaWorktrees": ".claude/worktrees", "regras": ["CLAUDE.md"] }`. Se o backend for .NET, acrescente `"reviewerComandos": { "dotnet": ["build", "test"] }`; se o frontend usar pnpm, `"reviewerComandos": { "pnpm": ["test", "lint"] }` (junte os dois quando houver ambos).
+- **`.claude/fluxo.json`**: `{ "branchPrincipal": "{{branch}}", "pastaDemandas": "docs/demandas", "kanban": "docs/demandas/README.md", "pastaHandoff": "docs/handoff", "pastaWorktrees": ".claude/worktrees", "regras": ["CLAUDE.md"], "apps": { "{{backend}}": "apps/{{backend}}", "{{frontend}}": "apps/{{frontend}}" } }` (em `apps`, só as que existirem; o nome é o prefixo da tag `<app>-vX.Y.Z` do `publish.yml`). Se o backend for .NET, acrescente `"reviewerComandos": { "dotnet": ["build", "test"] }`; se o frontend usar pnpm, `"reviewerComandos": { "pnpm": ["test", "lint"] }` (junte os dois quando houver ambos).
 - **`.claude/settings.json`**: o mesmo do `/fluxo:iniciar` (marketplace `liane`, `fluxo@liane` e `pr-review-toolkit@claude-plugins-official`).
 - **`docs/demandas/_template/`**: copie os modelos de `../iniciar/templates/`.
 - **`docs/demandas/README.md`**: kanban de `templates/kanban.md`, com a **001 no backlog** ("Esqueleto das aplicações": `{{esqueleto}}`, login pelo Keycloak e layout com o design system).
+- **`docs/releases/pendentes/README.md`**: uma frase: cada PR deixa aqui a nota de implantação, e o `/fluxo:publicar` junta as notas no runbook da publicação.
 - **`docs/handoff/README.md`**: uma frase sobre o formato `SESSION-HANDOFF-AAAA-MM-DD-NNN.md`.
 - **`.github/workflows/`**: de `templates/ci.yml` e `templates/publish.yml`, só com os jobs das stacks escolhidas. Cada job só roda quando a app já tem projeto (job `detect`), para o CI não falhar antes da 001.
 - **`apps/{{frontend}}/.npmrc`**:

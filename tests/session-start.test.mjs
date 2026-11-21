@@ -90,6 +90,19 @@ test('branch docs/NNN-slug: sessão da demanda', () => {
   assert.match(context(run({ cwd: repo, source: 'resume' })), /sessão da demanda[^.]*162-fluxo-plugin/);
 });
 
+test('branch fix/NNN-slug: sessão da demanda de correção', () => {
+  const repo = makeRepo('demanda-fix', 'fix/045-total-pedido');
+  const ctx = context(run({ cwd: repo, source: 'startup' }));
+  assert.match(ctx, /sessão da demanda 045-total-pedido[^.]*correção/);
+  assert.match(ctx, /bug\.md/);
+  assert.doesNotMatch(ctx, /sessão de coordenação/);
+});
+
+test('coordenação: classifica o tipo da demanda', () => {
+  const repo = makeRepo('coordenacao-tipo', 'main');
+  assert.match(context(run({ cwd: repo })), /funcionalidade[^.]*correção/);
+});
+
 test('branch de demanda com sufixo de entrega: sessão da demanda', () => {
   const repo = makeRepo('demanda-sufixo', 'feat/159-gerente-por-uf-etl');
   assert.match(context(run({ cwd: repo })), /159-gerente-por-uf-etl/);
