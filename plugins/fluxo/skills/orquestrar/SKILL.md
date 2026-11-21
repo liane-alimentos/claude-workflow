@@ -27,19 +27,34 @@ Sem o arquivo, o repositório ainda não está no fluxo: ofereça `/fluxo:inicia
 
 As regras próprias do projeto (comandos de teste, armadilhas, restrições como "migrations uma por vez") ficam nos arquivos de `regras` e **prevalecem** sobre este manual onde forem mais específicas.
 
+## Tipos de demanda
+Há dois caminhos. O tipo é decidido antes de abrir a sessão da demanda.
+
+| Tipo | Quando | Artefatos | Aprovações do usuário | Branch |
+|---|---|---|---|---|
+| **Funcionalidade** | Comportamento novo ou mudança de regra de negócio | `us.md`, `spec.md`, `tasks.md` | US, Spec e Tasks | `feat/NNN-slug` (ou `docs/NNN-slug`) |
+| **Correção** | O sistema não faz o que já foi especificado ou documentado (bug) | `bug.md` | O diagnóstico; nenhuma, se trivial | `fix/NNN-slug` |
+
+**Triagem.** A sessão de coordenação classifica o pedido e confirma com o usuário em uma linha, por exemplo: "Isto é uma correção (trivial), certo?". Na dúvida entre correção e funcionalidade, a classificação é funcionalidade.
+
+**Correção trivial.** Causa conhecida ou evidente, correção em poucos arquivos, sem mudar contrato, schema, migração, permissão ou segurança, e sem regra de negócio nova. A coordenação propõe, o usuário confirma, e o Arquiteto pode derrubar: se o diagnóstico não sustentar a triagem, ele encerra com `TRIVIAL: não` e o motivo, e a correção passa a ter a aprovação do diagnóstico.
+
+**Reclassificação.** Se o Arquiteto concluir que não é bug (o sistema faz o que foi especificado e o pedido muda a regra), ele encerra com `PERGUNTA:` recomendando tratar como funcionalidade. Com o ok do usuário, a demanda segue o caminho completo na mesma pasta, com a US escrita a partir do `bug.md`, e a sessão renomeia a branch para `feat/NNN-slug` (`git branch -m`) antes do primeiro push.
+
 ## Sessão de coordenação
-**Qual sessão você é.** O hook `SessionStart` do plugin já informa isso no início da sessão, pela branch. Você é a **sessão da demanda** quando a branch atual é a de uma demanda (`feat/NNN-slug` ou `docs/NNN-slug`) ou quando a sessão foi aberta pelo brief de uma sessão de coordenação (que nomeia a demanda, a branch e a pasta do worktree). Um pedido do usuário como "vamos fazer a 001" numa sessão que não está na branch da demanda não faz dela a sessão da demanda. Nos outros casos (checkout principal, worktree automático do app, como `claude/<nome>`, ou um pedido como "continuar o desenvolvimento" ou "próxima demanda"), você é a **sessão de coordenação**.
+**Qual sessão você é.** O hook `SessionStart` do plugin já informa isso no início da sessão, pela branch. Você é a **sessão da demanda** quando a branch atual é a de uma demanda (`feat/NNN-slug`, `docs/NNN-slug` ou `fix/NNN-slug`) ou quando a sessão foi aberta pelo brief de uma sessão de coordenação (que nomeia a demanda, a branch e a pasta do worktree). Um pedido do usuário como "vamos fazer a 001" numa sessão que não está na branch da demanda não faz dela a sessão da demanda. Nos outros casos (checkout principal, worktree automático do app, como `claude/<nome>`, ou um pedido como "continuar o desenvolvimento" ou "próxima demanda"), você é a **sessão de coordenação**.
 
 **O que a coordenação faz:**
-1. Lê o kanban, o handoff mais recente e as sessões de demanda já abertas, e conversa com o usuário sobre qual demanda começar ou retomar. Decisões e dúvidas de escopo que já aparecem aqui são resolvidas com o usuário antes de abrir a sessão.
-2. Faz a preparação (etapa 0): reserva o próximo `NNN`, cria a branch a partir de `origin/<branchPrincipal>` e o worktree em `<pastaWorktrees>/NNN-slug`. O `NNN` é reservado aqui, para que duas sessões em paralelo não escolham o mesmo número.
+1. Lê o kanban, o handoff mais recente e as sessões de demanda já abertas, e conversa com o usuário sobre qual demanda começar ou retomar. Decisões e dúvidas de escopo que já aparecem aqui são resolvidas com o usuário antes de abrir a sessão, incluindo o **tipo** da demanda (funcionalidade ou correção, e se a correção é trivial; veja "Tipos de demanda").
+2. Faz a preparação (etapa 0): reserva o próximo `NNN`, cria a branch (`feat/`, `docs/` ou `fix/`, conforme o tipo) a partir de `origin/<branchPrincipal>` e o worktree em `<pastaWorktrees>/NNN-slug`. O `NNN` é reservado aqui, para que duas sessões em paralelo não escolham o mesmo número.
 3. Abre uma **sessão filha** na pasta do worktree, uma por demanda, com um brief que basta para começar sem esta conversa:
    - demanda `NNN-slug`, branch e pasta do worktree;
-   - o pedido do usuário com as palavras dele, e as decisões já tomadas;
-   - a etapa de onde começar (em geral a US) e a instrução de seguir `/fluxo:orquestrar` como sessão da demanda.
+   - o tipo (funcionalidade, correção ou correção trivial), confirmado pelo usuário;
+   - o pedido do usuário com as palavras dele, e as decisões já tomadas (numa correção, os passos para reproduzir e o comportamento esperado que o usuário informou);
+   - a etapa de onde começar (a US numa funcionalidade, o `bug` numa correção) e a instrução de seguir `/fluxo:orquestrar` como sessão da demanda.
 4. Acompanha as sessões filhas e responde às mensagens delas. Quando uma sessão filha fecha um turno, a coordenação informa o usuário em uma ou duas linhas e não conduz as etapas da demanda.
 
-**O que a coordenação não faz:** não aciona `fluxo:architect`, `fluxo:developer` nem `fluxo:reviewer` e não responde às perguntas da demanda pelo usuário. As aprovações de US, Spec e Tasks acontecem na sessão da demanda, com o usuário.
+**O que a coordenação não faz:** não aciona `fluxo:architect`, `fluxo:developer` nem `fluxo:reviewer` e não responde às perguntas da demanda pelo usuário. As aprovações de US, Spec, Tasks e diagnóstico acontecem na sessão da demanda, com o usuário.
 
 **Paralelismo:** uma demanda por sessão filha. A coordenação só abre outra demanda ao mesmo tempo se o usuário pedir, respeitando as restrições dos arquivos de `regras` (por exemplo, "migrations uma demanda por vez").
 
@@ -53,11 +68,11 @@ As regras próprias do projeto (comandos de teste, armadilhas, restrições como
 
 | Papel | Modelo | Responsabilidade | Não faz |
 |---|---|---|---|
-| **Usuário** | — | Define a demanda, aprova US, Spec e Tasks, decide escalações e faz o merge | — |
+| **Usuário** | — | Define a demanda, confirma o tipo, aprova US, Spec e Tasks (ou o diagnóstico da correção), decide escalações e faz o merge | — |
 | **Sessão de coordenação** | O escolhido pelo usuário | Conversa sobre o backlog, reserva o `NNN`, cria a branch e o worktree e abre uma sessão filha por demanda | Não aciona os subagentes do fluxo nem conduz as etapas |
 | **Sessão principal** (da demanda) | O escolhido pelo usuário | Cria a branch e o worktree (quando a coordenação não criou), delega, leva aprovações e perguntas ao usuário, conta as rodadas, grava os registros do fluxo (handoff, status `em-implementação`, `em-review` e `concluída`, e `flow-evaluation.md`), faz o push e abre o PR | Não escreve código, testes, US, Spec nem Tasks |
 | **`Plan`** (opcional) | O padrão do agente | Explora código, docs e handoff e entrega um plano | Não altera estado |
-| **`fluxo:architect`** | `opus` | Escreve `us.md`, `spec.md` e `tasks.md`, uma etapa por vez, e faz commit | Não altera código; não faz push, merge nem rebase |
+| **`fluxo:architect`** | `opus` | Escreve `us.md`, `spec.md` e `tasks.md`, uma etapa por vez, ou o `bug.md` de uma correção, e faz commit | Não altera código; não faz push, merge nem rebase |
 | **`fluxo:developer`** | `sonnet` | Escreve os testes a partir dos CA-N, confirma que falham e implementa até passarem | Não decide dúvida de requisito; não altera teste só para fazê-lo passar; não faz push nem merge |
 | **`fluxo:reviewer`** | `opus` | Julga a implementação contra os CA-N e verifica que os testes nasceram da spec | Não edita arquivos nem altera o estado do Git |
 | **`pr-review-toolkit`** | Definido pelo plugin | Revisão complementar de código, testes e falhas silenciosas | Não confere a origem dos testes |
@@ -74,6 +89,17 @@ Usuário pede a demanda → sessão cria a branch e o worktree
 → aprovado: a sessão grava os registros do fluxo, faz o push e abre o PR → o merge é do usuário
 ```
 
+Numa **correção**, as etapas 1 e 2 se reduzem a uma:
+
+```text
+Coordenação classifica e o usuário confirma → branch fix/NNN-slug e worktree
+→ Arquiteto: bug.md (reprodução, causa raiz, correção, CA-N, tasks)
+   → normal: usuário aprova o diagnóstico
+   → trivial: segue sem parar (salvo TRIVIAL: não, que volta ao caso normal)
+→ Developer: teste que reproduz o bug (falha) → correção (passa)
+→ Revisão, rodadas e entrega iguais às da funcionalidade
+```
+
 ### 0. Preparação
 Quando a demanda veio de uma sessão de coordenação, a branch e o worktree já existem: a sessão confere a pasta e a branch do brief e segue para a etapa 1. Caso contrário, a sessão escolhe o próximo `NNN` no kanban (maior + 1, nunca reutilizado), faz `git fetch`, cria a branch a partir de `origin/<branchPrincipal>` e o worktree em `<pastaWorktrees>/NNN-slug`, e **trabalha no worktree**. Os subagentes trabalham na pasta da sessão, então não use `isolation: worktree` no Agent: esse campo cria outro worktree a partir da branch padrão. Se a sessão não estiver no worktree, informe a pasta a cada subagente e confira que ele a usa.
 
@@ -84,13 +110,17 @@ A sessão aciona o `fluxo:architect` com o pedido do usuário, a demanda (`NNN-s
 
 Formato: `us.md` = história e critérios de aceite numerados (CA-N); `spec.md` = solução técnica, citando os CA que atende; `tasks.md` = passos pequenos e ordenados, cada um citando a seção da spec e como será verificado.
 
+**Correção:** a etapa é `bug`, uma só. O Arquiteto investiga o código, escreve o `bug.md` inteiro (relato, como reproduzir, esperado × atual, causa raiz, correção proposta, CA-N e a tabela de tasks), grava o status `diagnóstico-em-revisão`, faz commit e encerra. Não há `us.md`, `spec.md` nem `tasks.md`.
+
 ### 2. Aprovação
 **As aprovações de US, Spec e Tasks são sempre do usuário, e nenhum subagente as dispensa.** Depois de cada etapa, a sessão apresenta um resumo e as perguntas ao usuário e **para**. A etapa seguinte só começa com aprovação explícita. Sem a aprovação das Tasks, o `fluxo:developer` não é acionado.
+
+**Correção:** há uma aprovação, a do diagnóstico (`bug.md`). Com ela, a sessão grava `diagnóstico-aprovado` e segue para a implementação. Na correção **trivial** confirmada pelo usuário na triagem, a sessão não para: apresenta o resumo do diagnóstico, grava `diagnóstico-aprovado` citando a confirmação da triagem e aciona o `developer`. Ela para, como no caso normal, quando o Arquiteto encerra com `TRIVIAL: não` ou `PERGUNTA:`, ou quando o diagnóstico mostra algo fora do critério de trivial.
 
 Subagentes não falam com o usuário. Quando o `architect` ou o `developer` encerra com `PERGUNTA:`, a sessão leva a pergunta ao usuário e retoma o **mesmo** agente (SendMessage) com a resposta. A sessão não responde por conta própria nem inventa regra de negócio.
 
 ### 3. Implementação
-Ao acionar o `fluxo:developer`, a sessão grava o status `em-implementação` no `us.md` e no kanban. Ela informa a pasta do worktree, a branch e a pasta da demanda. Ele confere a pasta e a branch, escreve os testes em commit próprio, registra a falha e só então implementa, com um commit por task.
+Ao acionar o `fluxo:developer`, a sessão grava o status `em-implementação` no `us.md` e no kanban. Ela informa a pasta do worktree, a branch e a pasta da demanda. Ele confere a pasta e a branch, escreve os testes em commit próprio, registra a falha e só então implementa, com um commit por task. Numa correção, o primeiro commit é o teste que reproduz o bug, e a falha registrada tem de ser a da causa raiz do `bug.md`.
 
 ### 4. Revisão
 A sessão aciona em paralelo, informando a pasta da demanda e a referência-base do diff (`origin/<branchPrincipal>`):
@@ -141,9 +171,10 @@ A sessão não assume o trabalho do agente por conta própria.
 
 ## Convenções
 - Demanda: `NNN-slug`, com `NNN` sequencial de 3 dígitos (nunca reutilizado) e slug em kebab-case, sem acento.
-- Branch: `feat/NNN-slug` (código) ou `docs/NNN-slug` (só documentação).
+- Branch: `feat/NNN-slug` (código), `docs/NNN-slug` (só documentação) ou `fix/NNN-slug` (correção).
 - Worktree: `<pastaWorktrees>/NNN-slug` (um por demanda; remover após o merge).
 - Status (ciclo de vida): `us-em-revisão` → `us-aprovada` → `spec-em-revisão` → `spec-aprovada` → `tasks-em-revisão` → `tasks-aprovada` → `em-implementação` → `em-review` → `concluída` (ou `cancelada`). O status do `us.md` e a linha do kanban sempre coincidem.
+- Status da correção: `diagnóstico-em-revisão` → `diagnóstico-aprovado` → `em-implementação` → `em-review` → `concluída` (ou `cancelada`), no `bug.md` e no kanban.
 
 ## Requisitos de cada máquina
 - **Plugins:** `fluxo@liane` e `pr-review-toolkit@claude-plugins-official`, habilitados no `.claude/settings.json` do projeto; cada máquina instala uma vez.

@@ -9,7 +9,7 @@ const PASTA_PADRAO = 'docs/development'
 const RELER_MS = 20_000
 
 const atual = atom({ plugin: 'demanda', key: 'atual' } as const, null as Demanda | null, {
-  shape: 'atual-2',
+  shape: 'atual-3',
 })
 const contexto = atom(
   { plugin: 'demanda', key: 'contexto' } as const,
@@ -19,18 +19,28 @@ const contexto = atom(
 const aba = atom({ plugin: 'demanda', key: 'aba' } as const, 'us' as Aba)
 const abertas = atom({ plugin: 'demanda', key: 'abertas' } as const, [] as string[])
 
-/** Branch de demanda do fluxo: feat/NNN-slug ou docs/NNN-slug. */
-const BRANCH = /^(?:feat|docs)\/(\d{3}[a-z]?-[a-z0-9][a-z0-9-]*)$/
-/** Um us.md, spec.md ou tasks.md dentro da pasta NNN-slug de uma demanda. */
-const ARQUIVO = /^(.*\/(\d{3}[a-z]?-[a-z0-9][a-z0-9-]*))\/(?:us|spec|tasks)\.md$/i
+/** Branch de demanda do fluxo: feat/NNN-slug, docs/NNN-slug ou fix/NNN-slug. */
+const BRANCH = /^(?:feat|docs|fix)\/(\d{3}[a-z]?-[a-z0-9][a-z0-9-]*)$/
+/** Um us.md, spec.md, tasks.md ou bug.md dentro da pasta NNN-slug de uma demanda. */
+const ARQUIVO = /^(.*\/(\d{3}[a-z]?-[a-z0-9][a-z0-9-]*))\/(?:us|spec|tasks|bug)\.md$/i
 
 const ETAPAS = ['US', 'Spec', 'Tasks', 'Implementação', 'Review', 'Concluída'] as const
+const ETAPAS_CORRECAO = ['Diagnóstico', 'Implementação', 'Review', 'Concluída'] as const
 
-/** Etapa corrente e se ela aguarda a aprovação do usuário, a partir do status do us.md. */
-export function etapa(status: string): { i: number; aguardando: boolean; cancelada: boolean } {
+/** Etapa corrente e se ela aguarda a aprovação do usuário, a partir do status do us.md (ou do bug.md). */
+export function etapa(
+  status: string,
+  tipo: Demanda['tipo'] = 'funcionalidade',
+): { i: number; aguardando: boolean; cancelada: boolean } {
   const s = semAcento(status)
   if (s.includes('cancelad')) return { i: -1, aguardando: false, cancelada: true }
-  const tabela: [string, number, boolean][] = [
+  const tabela: [string, number, boolean][] = tipo === 'correcao' ? [
+    ['diagnostico-em-revisao', 0, true],
+    ['diagnostico-aprovado', 1, false],
+    ['em-implementacao', 1, false],
+    ['em-review', 2, false],
+    ['concluida', 4, false],
+  ] : [
     ['us-em-revisao', 0, true],
     ['us-aprovada', 1, false],
     ['spec-em-revisao', 1, true],
@@ -158,21 +168,27 @@ export const register: Register = on => {
     }
 
     async function carregar(dir: string, origem: Demanda['origem'], abrir = true) {
-      const [us = null, spec = null, tasks = null] = await Promise.all(['us', 'spec', 'tasks'].map(f => ler(`${dir}/${f}.md`)))
-      if (us === null && spec === null && tasks === null) return
-      const cab = cabecalho(us)
-      const lista = lerTasks(tasks)
+      const [us = null, spec = null, tasks = null, bug = null] = await Promise.all(
+        ['us', 'spec', 'tasks', 'bug'].map(f => ler(`${dir}/${f}.md`)),
+      )
+      if (us === null && spec === null && tasks === null && bug === null) return
+      // Correção: só o bug.md, com o cabeçalho e as tasks dele. Se a correção virou funcionalidade, vale o us.md.
+      const tipo: Demanda['tipo'] = bug !== null && us === null ? 'correcao' : 'funcionalidade'
+      const cab = cabecalho(tipo === 'correcao' ? bug : us)
+      const lista = lerTasks(tipo === 'correcao' ? bug : tasks)
       const antes = await read($, atual)
       const d: Demanda = {
         dir,
         id: dir.split('/').pop() ?? dir,
         origem,
+        tipo,
         titulo: cab.titulo,
         status: cab.status,
         branch: cab.branch,
         us,
         spec,
         tasks,
+        bug,
         lista,
         lidoEm: await $.clock.now(),
       }
@@ -181,8 +197,11 @@ export const register: Register = on => {
       $.ui.status(`📋 ${d.id}${d.status ? ` · ${d.status}` : ''}${lista.length ? ` · tasks ${feitas}/${lista.length}` : ''}`)
       if (abrir && antes?.dir !== dir) {
         // Abre na aba da etapa em andamento.
-        const et = etapa(d.status)
-        const abaInicial: Aba = et.i >= 2 && tasks ? 'tasks' : et.i >= 1 && spec ? 'spec' : 'us'
+        const et = etapa(d.status, tipo)
+        const abaInicial: Aba =
+          tipo === 'correcao'
+            ? et.i >= 1 && lista.length ? 'tasks' : 'bug'
+            : et.i >= 2 && tasks ? 'tasks' : et.i >= 1 && spec ? 'spec' : 'us'
         await update($, aba, () => abaInicial)
         void $.ui.open({ id: PANE, title: 'Demanda' })
       }
@@ -234,7 +253,7 @@ export const register: Register = on => {
 
     await $.command.register({
       name: 'demanda',
-      description: 'Painel com a US, a Spec e as Tasks da demanda desta sessão',
+      description: 'Painel com a US, a Spec e as Tasks (ou o diagnóstico da correção) da demanda desta sessão',
     })
     $.clock.after(500, () => void detectar())
     $.clock.every(RELER_MS, () => void reler())
@@ -290,11 +309,11 @@ export const register: Register = on => {
           {ctx.pastaDemandas === null ? (
             <Text dimColor>
               Este repositório não está no fluxo (sem .claude/fluxo.json). O painel mostra a demanda quando a sessão
-              trabalha numa branch feat/NNN-slug ou lê os arquivos us.md, spec.md e tasks.md de uma demanda.
+              trabalha numa branch feat/NNN-slug ou fix/NNN-slug, ou lê os arquivos us.md, spec.md, tasks.md ou bug.md de uma demanda.
             </Text>
           ) : (
             <Text dimColor>
-              {`Nenhuma demanda detectada nesta sessão (branch ${ctx.branch || 'desconhecida'}). Ela aparece sozinha quando a sessão estiver numa branch feat/NNN-slug ou tocar os arquivos de uma demanda.`}
+              {`Nenhuma demanda detectada nesta sessão (branch ${ctx.branch || 'desconhecida'}). Ela aparece sozinha quando a sessão estiver numa branch feat/NNN-slug ou fix/NNN-slug, ou tocar os arquivos de uma demanda.`}
             </Text>
           )}
           {ctx.disponiveis.length > 0 && (
@@ -316,18 +335,30 @@ export const register: Register = on => {
       )
     }
 
-    const et = etapa(d.status)
+    const correcao = d.tipo === 'correcao'
+    const et = etapa(d.status, d.tipo)
+    const etapas: readonly string[] = correcao ? ETAPAS_CORRECAO : ETAPAS
     const feitas = d.lista.filter(t => t.estado === 'feita').length
     const andamento = d.lista.filter(t => t.estado === 'andamento').length
     // A task da vez: a primeira em andamento, senão a primeira pendente.
     const atualN = (d.lista.find(t => t.estado === 'andamento') ?? d.lista.find(t => t.estado === 'pendente'))?.n
-    const texto = abaAtual === 'us' ? d.us : abaAtual === 'spec' ? d.spec : d.tasks
-    const nomeArquivo = `${abaAtual}.md`
-    const abas: { id: Aba; label: string; existe: boolean }[] = [
-      { id: 'us', label: 'US', existe: d.us !== null },
-      { id: 'spec', label: 'Spec', existe: d.spec !== null },
-      { id: 'tasks', label: d.lista.length ? `Tasks ${feitas}/${d.lista.length}` : 'Tasks', existe: d.tasks !== null },
-    ]
+    // A aba guardada pode ser de outro tipo de demanda: US e Spec não existem numa correção, nem Bug numa funcionalidade.
+    const abaVista: Aba = correcao ? (abaAtual === 'tasks' ? 'tasks' : 'bug') : abaAtual === 'bug' ? 'us' : abaAtual
+    const texto = correcao
+      ? d.bug
+      : abaVista === 'us' ? d.us : abaVista === 'spec' ? d.spec : d.tasks
+    const nomeArquivo = correcao ? 'bug.md' : `${abaVista}.md`
+    const rotuloTasks = d.lista.length ? `Tasks ${feitas}/${d.lista.length}` : 'Tasks'
+    const abas: { id: Aba; label: string; existe: boolean }[] = correcao
+      ? [
+          { id: 'bug', label: 'Diagnóstico', existe: d.bug !== null },
+          { id: 'tasks', label: rotuloTasks, existe: d.lista.length > 0 },
+        ]
+      : [
+          { id: 'us', label: 'US', existe: d.us !== null },
+          { id: 'spec', label: 'Spec', existe: d.spec !== null },
+          { id: 'tasks', label: rotuloTasks, existe: d.tasks !== null },
+        ]
     const ORIGEM: Record<Demanda['origem'], string> = {
       branch: 'pela branch',
       arquivo: 'pelos arquivos tocados na sessão',
@@ -346,8 +377,8 @@ export const register: Register = on => {
           {et.cancelada ? (
             <Text backgroundColor="error" color="inverseText" bold size="caption">{' cancelada '}</Text>
           ) : (
-            ETAPAS.map((nome, i) => {
-              const feita = i < et.i || et.i >= ETAPAS.length
+            etapas.map((nome, i) => {
+              const feita = i < et.i || et.i >= etapas.length
               const corrente = i === et.i
               return (
                 <Text
@@ -389,7 +420,7 @@ export const register: Register = on => {
             <Button
               key={`aba:${a.id}`}
               hotkey={String(i + 1)}
-              variant={abaAtual === a.id ? 'primary' : 'secondary'}
+              variant={abaVista === a.id ? 'primary' : 'secondary'}
               dimColor={!a.existe}
               onPress={() => update($, aba, () => a.id)}
             >
@@ -403,7 +434,7 @@ export const register: Register = on => {
 
         {texto === null ? (
           <Text dimColor>{`${nomeArquivo} ainda não foi escrito.`}</Text>
-        ) : abaAtual === 'tasks' && d.lista.length > 0 ? (
+        ) : abaVista === 'tasks' && d.lista.length > 0 ? (
           <Box flexDirection="column">
             <Box flexDirection="row" justifyContent="flex-end">
               <Button

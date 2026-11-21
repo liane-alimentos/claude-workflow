@@ -1,4 +1,4 @@
-export type Aba = 'us' | 'spec' | 'tasks'
+export type Aba = 'us' | 'spec' | 'tasks' | 'bug'
 
 export type Task = {
   n: string
@@ -17,12 +17,15 @@ export type Demanda = {
   id: string
   /** Como a demanda foi achada: pela branch, por um arquivo tocado na sessão ou escolhida no painel. */
   origem: 'branch' | 'arquivo' | 'escolha'
+  /** Funcionalidade (us, spec e tasks) ou correção (bug.md). */
+  tipo: 'funcionalidade' | 'correcao'
   titulo: string
   status: string
   branch: string
   us: string | null
   spec: string | null
   tasks: string | null
+  bug: string | null
   lista: Task[]
   lidoEm: number
 }

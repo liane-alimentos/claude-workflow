@@ -100,6 +100,7 @@ test('acha a demanda pela branch e mostra as tasks, em todo surface', async ($, 
     expect((await ui.find({ type: 'Text', text: /^Painel de pedidos$/ }))?.text).toBe('Painel de pedidos')
     expect(await ui.find({ type: 'Text', text: /Implementar a lista/ })).toBeTruthy()
     expect(await ui.find({ type: 'Text', text: /Status: tasks-aprovada/ })).toBeTruthy()
+    expect(JSON.stringify(await ui.drawn())).toContain('"US"')
     // Abriu na aba das tasks; a aba US mostra o us.md.
     await ui.press({ key: 'aba:us' })
     expect(await ui.find({ type: 'Text', text: /Implementar a lista/ })).toBeFalsy()
@@ -130,4 +131,57 @@ test('fora de uma branch de demanda, acha a demanda pelo arquivo que a sessão l
   ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /pelos arquivos tocados/ })).toBeTruthy()
   await ui.unmount()
+})
+
+const BUG = `# 007-painel-pedidos — Total do pedido errado
+
+- **Status:** diagnóstico-em-revisão
+- **Tipo:** correção
+- **Trivial:** não
+- **Branch:** \`fix/007-painel-pedidos\`
+
+## Causa raiz
+O desconto é aplicado duas vezes em \`src/total.ts:42\`.
+
+## Tasks
+| # | Task | Spec | Verificação | Status |
+|---|---|---|---|---|
+| 1 | Teste que reproduz o bug (CA-1) | §Como reproduzir | falha antes da correção | ☑ |
+| 2 | Corrigir o desconto | §Correção proposta | teste 1 passa | ☐ |
+`
+
+test('etapas da correção', () => {
+  expect(cabecalho(BUG)).toEqual({ titulo: 'Total do pedido errado', status: 'diagnóstico-em-revisão', branch: 'fix/007-painel-pedidos' })
+  expect(cabecalho('- **Status:** diagnóstico-em-revisão | diagnóstico-aprovado').status).toBe('')
+  expect(etapa('diagnóstico-em-revisão', 'correcao')).toEqual({ i: 0, aguardando: true, cancelada: false })
+  expect(etapa('diagnóstico-aprovado', 'correcao')).toEqual({ i: 1, aguardando: false, cancelada: false })
+  expect(etapa('em-review', 'correcao').i).toBe(2)
+  expect(etapa('concluída', 'correcao').i).toBe(4)
+  expect(etapa('cancelada', 'correcao').cancelada).toBe(true)
+  expect(lerTasks(BUG).map(t => t.estado)).toEqual(['feita', 'pendente'])
+})
+
+test('correção: acha pela branch fix/ e mostra o diagnóstico e as tasks do bug.md', async ($, on) => {
+  const clock = mock.clock(on)
+  const files = mundo(on, 'fix/007-painel-pedidos')
+  delete files[`${DIR}/us.md`]
+  delete files[`${DIR}/tasks.md`]
+  files[`${DIR}/bug.md`] = BUG
+  await $.session.start({ cwd: RAIZ, surface: 'desktop', isInteractive: true })
+  await clock.advance(1000)
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    expect(await ui.find({ type: 'Text', text: /^Total do pedido errado$/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Text', text: /Diagnóstico/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Text', text: /aguardando a sua aprovação/ })).toBeTruthy()
+    // Sem US nem Spec numa correção.
+    expect(await ui.find({ type: 'Text', text: /^US$/ })).toBeFalsy()
+    expect(await ui.find({ type: "Text", text: /^Spec$/ })).toBeFalsy()
+    expect(JSON.stringify(await ui.drawn())).toContain('src/total.ts:42')
+    await ui.press({ key: 'aba:tasks' })
+    expect(await ui.find({ type: 'Text', text: /Corrigir o desconto/ })).toBeTruthy()
+    await ui.press({ key: 'aba:bug' })
+    await ui.unmount()
+  }
 })

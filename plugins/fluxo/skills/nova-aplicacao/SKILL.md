@@ -50,7 +50,7 @@ Os nomes são o `client_id` no realm `liane` e o prefixo dos groups (`/apps/<cli
     {{frontend}}/.npmrc          escopo @liane-alimentos no GitHub Packages (se houver frontend)
   docs/
     demandas/README.md           kanban, com a 001 no backlog
-    demandas/_template/          modelos us, spec, tasks, flow-evaluation
+    demandas/_template/          modelos us, spec, tasks, bug, flow-evaluation
     handoff/README.md
     deploy/DEPLOY.md             plano de implantação: Keycloak, infra, variáveis
   .github/workflows/ci.yml       se houver CI

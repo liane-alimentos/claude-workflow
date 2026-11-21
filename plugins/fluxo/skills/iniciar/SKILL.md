@@ -19,8 +19,8 @@ Faça numa branch própria (`docs/fluxo-orquestrado`, a partir da branch princip
      "regras": ["CLAUDE.md"]
    }
    ```
-4. **Copie os templates** de `templates/`, nesta skill, para `<pastaDemandas>/_template/`.
-5. **Crie o kanban** com a seção de nomeação, o ciclo de status e a tabela `| NNN | Slug | Título | Status | Branch / PR |`. Demandas antigas que não seguem `NNN-slug` ficam como estão; cite-as numa seção "Antes do fluxo".
+4. **Copie os templates** de `templates/`, nesta skill, para `<pastaDemandas>/_template/` (`us`, `spec`, `tasks`, `bug` e `flow-evaluation`).
+5. **Crie o kanban** com a seção de nomeação (branches `feat/`, `docs/` e `fix/`), os dois ciclos de status (funcionalidade e correção) e a tabela `| NNN | Slug | Título | Status | Branch / PR |`. Demandas antigas que não seguem `NNN-slug` ficam como estão; cite-as numa seção "Antes do fluxo".
 6. **Ligue os plugins** no `.claude/settings.json` do projeto, preservando o que já existe:
    ```json
    {
