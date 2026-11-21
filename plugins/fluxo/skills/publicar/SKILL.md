@@ -51,6 +51,7 @@ Apresente ao usuário, em uma tabela: app, versão anterior, versão proposta, P
 ## 4. Escrever o runbook
 1. Crie `<pastaReleases>/AAAA-MM-DD-<app>-<versão>[-<app>-<versão>…]/` e mova as notas que saem para lá com `git mv`.
 2. Escreva `runbook.md` a partir do template `runbook-publicacao.md`, juntando as notas sem repetir passo:
+   - **Nota:** na tabela "O que sai", troque o nome do arquivo por um link para a nota, que agora está na mesma pasta (`[nota](NNN-slug.md)`). O template traz só o nome, para não ter link quebrado no `_template/`.
    - **Ordem das apps:** uma app que não é compatível com a versão anterior de outra sai depois dela (a nota diz qual). Sem restrição, api antes de web, e o etl por último. Explique a ordem em uma linha por app.
    - **Migrations:** na ordem das demandas (o `NNN`), com o backup antes se houver qualquer uma.
    - **Variáveis de ambiente:** só os nomes, nunca os valores.
