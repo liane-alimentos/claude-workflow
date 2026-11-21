@@ -10,7 +10,7 @@ Runbook gerado pelo `/fluxo:publicar`. O responsável executa um passo por vez; 
 ## O que sai
 | Demanda | PR | Apps | Mudança | Migration | Nota |
 |---|---|---|---|---|---|
-| NNN-slug | #N | api | correção | não | [nota](NNN-slug.md) |
+| NNN-slug | #N | api | correção | não | `NNN-slug.md` |
 
 **Sem nota de implantação:** commits que entram nesta publicação sem nota (PRs anteriores ao fluxo de notas ou feitos fora dele), com o resumo da seção "Implantação e riscos" de cada PR, ou "nenhum".
 
