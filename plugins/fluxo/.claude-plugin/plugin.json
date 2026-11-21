@@ -1,6 +1,6 @@
 {
   "name": "fluxo",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Fluxo orquestrado de demandas: Arquiteto (US, Spec, Tasks ou o diagnóstico de uma correção), Developer com testes primeiro e Reviewer contra os CA-N, com guarda de comandos por papel.",
   "author": {
     "name": "Liane Alimentos"

@@ -16,5 +16,8 @@ Endpoints, DTOs, modelos de dados, eventos. Cada item cita o CA que atende.
 ## Riscos e decisões
 - …
 
+## Implantação
+O que a publicação precisa saber, para a nota de implantação: apps afetadas; migration (sim/não, quais); compatível com a versão anterior das outras apps (sim/não, e quem sai antes); variáveis de ambiente novas ou alteradas (só os nomes); outros (labels, cron, Keycloak, infra); passos antes e depois do deploy; como voltar. "Nenhuma ação além do deploy" quando for o caso.
+
 ## Estratégia de verificação
 Testes, comandos e checagens manuais que provam cada CA.

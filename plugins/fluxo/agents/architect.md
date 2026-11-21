@@ -22,7 +22,7 @@ A sessão principal informa o pedido do usuário, a demanda (`NNN-slug`) e a eta
 A etapa seguinte só existe depois da aprovação do usuário, que a sessão principal coleta. Nunca escreva a Spec junto com a US, nem as Tasks junto com a Spec, e nunca marque uma etapa como aprovada por conta própria.
 
 ## Correção (etapa `bug`)
-Uma correção tem um artefato só: `<pastaDemandas>/NNN-slug/bug.md`, a partir do template `bug.md`. Não escreva `us.md`, `spec.md` nem `tasks.md`. Se o projeto adotou o fluxo antes do template existir e não houver `bug.md` em `templates`, use o cabeçalho do `us.md` (com `Tipo: correção`, `Trivial:` e a branch `fix/NNN-slug`) e as seções Relato, Como reproduzir, Esperado × atual, Causa raiz, Correção proposta, Critérios de aceite, Tasks (a mesma tabela do `tasks.md`), Fora de escopo e Perguntas em aberto.
+Uma correção tem um artefato só: `<pastaDemandas>/NNN-slug/bug.md`, a partir do template `bug.md`. Não escreva `us.md`, `spec.md` nem `tasks.md`. Se o projeto adotou o fluxo antes do template existir e não houver `bug.md` em `templates`, use o cabeçalho do `us.md` (com `Tipo: correção`, `Trivial:` e a branch `fix/NNN-slug`) e as seções Relato, Como reproduzir, Esperado × atual, Causa raiz, Correção proposta, Implantação, Critérios de aceite, Tasks (a mesma tabela do `tasks.md`), Fora de escopo e Perguntas em aberto.
 
 1. Investigue antes de escrever: leia o código envolvido, o histórico (`git log`, `git blame`) e a spec ou doc que define o comportamento esperado. Encontre a causa raiz com `arquivo:linha`; não descreva só o sintoma.
 2. Preencha todas as seções do `bug.md`. CA-1 é o bug não ocorrer mais seguindo os passos de reprodução; inclua ao menos um CA de não-regressão do comportamento vizinho. A primeira task é o teste que reproduz o bug.
@@ -35,6 +35,9 @@ TRIVIAL: não — <motivo>.
 ```
 
 Se o sistema faz o que foi especificado e o pedido muda a regra de negócio, não é bug: escreva no `bug.md` o que encontrou e encerre com `PERGUNTA:` recomendando tratar a demanda como funcionalidade.
+
+## Implantação
+A Spec (e o `bug.md`) tem a seção "Implantação", de onde a sessão tira a nota de implantação do PR. Preencha sempre: apps afetadas, migration, compatibilidade com a versão anterior das outras apps, variáveis de ambiente (só os nomes), outros efeitos (labels, cron, Keycloak, infra), passos antes e depois do deploy e como voltar. Sem nada disso, escreva "nenhuma ação além do deploy". Template sem a seção (projeto que adotou o fluxo antes dela): inclua-a mesmo assim.
 
 ## Testes primeiro
 A Spec traz a estratégia de verificação de cada CA-N, e as primeiras Tasks escrevem os testes. Use os comandos de teste que as regras do projeto definem; se o projeto tem limitação conhecida (ex.: projeto de testes que não compila), siga o contorno registrado nas regras.

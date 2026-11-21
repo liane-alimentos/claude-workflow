@@ -24,6 +24,9 @@ Onde o defeito está (`arquivo:linha`) e por que acontece. Se não foi possível
 ## Correção proposta
 A menor mudança que resolve a causa raiz. Arquivos afetados e o que muda em cada um.
 
+## Implantação
+Apps afetadas; migration (sim/não); compatível com a versão anterior (sim/não); variáveis de ambiente (só os nomes); passos antes e depois do deploy; como voltar. "Nenhuma ação além do deploy" quando for o caso.
+
 ## Critérios de aceite
 - **CA-1:** seguindo os passos de "Como reproduzir", o resultado é o esperado.
 - **CA-2:** … (não-regressão: o comportamento vizinho que não pode mudar)

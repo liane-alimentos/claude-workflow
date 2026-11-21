@@ -21,6 +21,8 @@ Leia `.claude/fluxo.json` na raiz do repositório antes de tudo. Campos (todos o
 | `pastaHandoff` | `docs/handoff` | Handoffs de sessão, somente leitura depois de escritos |
 | `pastaWorktrees` | `../worktrees` | Onde criar o worktree de cada demanda |
 | `regras` | `AGENT.md`, `CLAUDE.md` | Arquivos de regras que todo agente lê |
+| `pastaReleases` | `docs/releases` | Notas de implantação pendentes (`pendentes/`) e uma pasta por publicação, com o runbook; veja `/fluxo:publicar` |
+| `apps` | inferido das tags | Apps publicadas por tag, `{ "api": "apps/api", "web": "apps/web" }`: o nome é o prefixo da tag `<app>-vX.Y.Z` |
 | `reviewerComandos` | nenhum | Programas e subcomandos extras que o Reviewer pode rodar para build e testes, ex.: `{ "dotnet": ["build", "test"] }`. Shells, `git`, `gh`, `node`, `npm`, `npx` e comandos de escrita não entram |
 
 Sem o arquivo, o repositório ainda não está no fluxo: ofereça `/fluxo:iniciar`.
@@ -139,9 +141,9 @@ Reprovado o trabalho, a sessão devolve os achados ao `developer`, e depois os a
 - **Limite de 3 rodadas.** Se a terceira terminar reprovada, a sessão escala ao usuário, com os achados em aberto, e não aciona o `developer` de novo sem a decisão dele.
 
 ### 6. Entrega
-Com o veredito `aprovado`, a sessão escreve o handoff em commit próprio (`<pastaHandoff>/SESSION-HANDOFF-AAAA-MM-DD-NNN.md`), a partir dos resultados entregues pelo `developer`, e grava o status `em-review` no `us.md` e no kanban. Confere por `git diff` que só documentação mudou desde o commit aprovado. Depois, faz o push, abre o PR (descrição em pt-BR, gravada em arquivo UTF-8 e passada com `--body-file`: resumo, CA atendidos, testes, o que falta testar manualmente) e reporta ao usuário o que foi feito, os riscos e as pendências. **O merge é do usuário.**
+Com o veredito `aprovado`, a sessão escreve, num commit próprio, o handoff (`<pastaHandoff>/SESSION-HANDOFF-AAAA-MM-DD-NNN.md`, a partir dos resultados entregues pelo `developer`) e a **nota de implantação** (`<pastaReleases>/pendentes/NNN-slug.md`, do template `nota-implantacao.md`, a partir da seção "Implantação" da Spec ou do `bug.md` e do diff), e grava o status `em-review` no `us.md` (ou no `bug.md`) e no kanban. Os campos do cabeçalho da nota (Apps, Mudança, Migration, Compatível com a versão anterior, Variáveis de ambiente) são conferidos no diff, não copiados da Spec às cegas. Demanda só de documentação, sem nada a publicar, não tem nota. Confere por `git diff` que só documentação mudou desde o commit aprovado. Depois, faz o push, abre o PR (descrição em pt-BR, gravada em arquivo UTF-8 e passada com `--body-file`: resumo, CA atendidos, testes, o que falta testar manualmente e a implantação resumida, com o link da nota) e reporta ao usuário o que foi feito, os riscos e as pendências. **O merge é do usuário.**
 
-Depois do merge, a sessão reúne os dados e grava uma cópia preenchida de `flow-evaluation.md` na pasta da demanda, junto com o status `concluída`. O `developer` não a grava.
+Depois do merge, a sessão reúne os dados e grava uma cópia preenchida de `flow-evaluation.md` na pasta da demanda, junto com o status `concluída`. O `developer` não a grava. A publicação (versão, tags, runbook) não é da demanda: várias demandas saem juntas pelo `/fluxo:publicar`, na sessão de coordenação.
 
 ## Retomar uma demanda em outra sessão
 Uma branch só pode estar em um worktree por vez. Quando a demanda passa de uma sessão para outra (as Tasks aprovadas numa sessão e a implementação noutra, por exemplo), a branch não pode ficar presa no worktree da sessão anterior.
@@ -165,6 +167,7 @@ A sessão não assume o trabalho do agente por conta própria.
 - **Relatório não é prova:** a sessão confere o resultado no histórico, nos testes e no diff antes de reportar ao usuário.
 - **Guarda negou:** o agente não tenta contornar, e informa o bloqueio. A decisão é do usuário.
 - Sem force-push e sem merge na branch principal pelos agentes.
+- Tags de versão e GitHub Releases só pelo `/fluxo:publicar`, com o ok do usuário; a sessão da demanda não cria tag.
 - **Testes automatizados são a fonte da verdade:** desenhar os testes antes do desenvolvimento, a partir dos CA-N da spec; o `developer` implementa até passarem; o `reviewer` verifica que nasceram da spec.
 - Nunca colocar segredos, senhas, tokens ou dados pessoais em docs, commits ou PRs.
 - Comentários de code review no PR (Copilot e outros): a sessão confere no código se procedem, propõe a resposta e só responde ou resolve no GitHub com o ok do usuário.

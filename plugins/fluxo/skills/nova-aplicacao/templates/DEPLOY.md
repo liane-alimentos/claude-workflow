@@ -51,3 +51,6 @@ Mudanças por PR no `infra`, executadas pelo responsável no servidor `.215`:
 
 ## 4. Ordem
 Keycloak → API → web. Parar se um passo falhar.
+
+## 5. Versões seguintes
+Este plano é o da primeira implantação. Cada versão depois dela sai por tag (`<app>-vX.Y.Z`) e segue o runbook da publicação em `docs/releases/`, montado pelo `/fluxo:publicar` a partir das notas de implantação de cada PR.

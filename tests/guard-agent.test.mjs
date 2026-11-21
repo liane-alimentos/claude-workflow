@@ -379,6 +379,21 @@ test('fluxo.json: branch principal e pastas configuráveis', () => {
   assertAllowed(write('developer', 'docs/handoff/H.md'), 'docs/handoff não é protegido quando a config aponta outra pasta');
 });
 
+test('fluxo.json: campos da publicação (pastaReleases e apps) não mudam a guarda', () => {
+  const dir = join(sandbox, 'com-releases');
+  makeRepo(dir, 'feat/teste');
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  writeFileSync(join(dir, '.claude', 'fluxo.json'), JSON.stringify({
+    pastaDemandas: 'docs/demandas',
+    pastaReleases: 'docs/releases',
+    apps: { api: 'apps/api', web: 'apps/web' },
+  }));
+  const write = (agent, file) => decisionOf(runGuard(agent, JSON.stringify({ tool_name: 'Write', tool_input: { file_path: file }, cwd: dir }), { projectDir: dir }));
+  assertAllowed(write('architect', 'docs/demandas/001-x/spec.md'), 'arquiteto na pasta de demandas');
+  assertDenied(write('architect', 'docs/releases/pendentes/001-x.md'), 'a nota de implantação é da sessão, não do Arquiteto');
+  assertAllowed(write('developer', 'apps/api/x.ts'), 'developer na pasta da demanda');
+});
+
 test('worktree: a raiz é o worktree do cwd quando ele é do mesmo repositório', () => {
   // Como no Claude Desktop: CLAUDE_PROJECT_DIR no checkout principal, cwd num worktree dentro dele.
   const main = join(sandbox, 'principal');
